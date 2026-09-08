@@ -10,14 +10,18 @@ export class UserRepository {
   ) {}
   async create(user: Partial<User>) {
     try {
+      console.log(user);
       const createdUser = await this.repository.save(
         this.repository.create(user),
       );
+      console.log('createdUser');
       if (!createdUser) {
         return null;
       }
+      console.log(createdUser);
       return this.findOne(createdUser.id);
     } catch (err) {
+      console.log(err);
       return null;
     }
   }

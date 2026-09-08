@@ -8,8 +8,8 @@ import * as cookieParser from 'cookie-parser';
 
 function setupSwagger(app: INestApplication): void {
   const documentBuilder = new DocumentBuilder()
-    .setTitle('Hamro Sewa API')
-    .setDescription('This is the API documentation for hamro-sewa.')
+    .setTitle('Catholic-memorabilia')
+    .setDescription('This is the API documentation for Catholic-memorabilia.')
     .setVersion('1.0')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },

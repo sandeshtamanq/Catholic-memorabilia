@@ -12,6 +12,7 @@ import {
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
+import { UserRole } from './UserRole.Enum';
 @Entity({ name: 'users' })
 @Unique(['email'])
 export class User extends BaseEntity {
@@ -35,14 +36,21 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', nullable: false })
   contactNumber: number;
 
-  @ApiProperty()
   @Exclude()
   @Column({ type: 'varchar', nullable: false })
   password: string;
 
   @ApiProperty()
-  @Column({ type: 'varchar', nullable: false })
-  address: string;
+  @Column({ type: 'varchar', nullable: true })
+  address?: string;
+
+  @ApiProperty()
+  @Column({ type: 'varchar', default: UserRole.User })
+  role: UserRole;
+
+  @ApiProperty()
+  @Column({ type: 'boolean', default: false })
+  isEmailVerified: boolean;
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp', nullable: false })
@@ -55,4 +63,12 @@ export class User extends BaseEntity {
   @ApiProperty()
   @DeleteDateColumn({ type: 'timestamp', nullable: true })
   deletedAt?: Date;
+
+  @ApiProperty()
+  @Column({ type: 'varchar', nullable: true })
+  profileImageUrl: string;
+
+  //virtual property
+  @ApiProperty()
+  fullName: string;
 }

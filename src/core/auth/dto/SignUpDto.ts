@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   IsStrongPassword,
+  Matches,
   MinLength,
 } from 'class-validator';
 
@@ -36,7 +37,15 @@ export class SignUpDto {
   @ApiProperty({ required: true })
   @IsString()
   @IsNotEmpty()
+  @Matches(/^(?:\+61|0)4\d{8}$/, {
+    message: 'Please enter a valid mobile number.',
+  })
   contactNumber: string;
+
+  @ApiProperty({ required: true })
+  @IsString()
+  @IsOptional()
+  address?: string;
 
   @ApiProperty({ required: true })
   @IsString()

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   HttpException,
   Injectable,
   UnauthorizedException,
@@ -9,12 +10,14 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../user/entities/User.Entity';
 import { UserService } from '../user/User.Service';
 import { JwtService } from '@nestjs/jwt';
+import { MailService } from '../../infra/mail/Mail.Service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async validateUser(username: string, password: string) {
@@ -42,14 +45,34 @@ export class AuthService {
 
   async signUp(signUpDto: SignUpDto) {
     try {
+      const userExists = await this.userService.findOneBy({
+        email: signUpDto.email,
+      });
+      if (userExists) {
+        throw new BadRequestException('User already exists!');
+      }
       const hashedPassword = await this.hashPassword(signUpDto.password);
       const user = await this.userService.createUser({
         ...signUpDto,
         password: hashedPassword,
       });
+
+      const token = this.jwtService.sign(
+        { email: user.email },
+        {
+          secret: process.env.JWT_SECRET,
+          expiresIn: `1d`,
+        },
+      );
+      await this.mailService.sendUserConfirmation(user, token);
+      return user;
       return user;
     } catch (err) {
-      throw new HttpException(err.message, 500);
+      if (err instanceof BadRequestException) {
+        throw new BadRequestException('User already exists!');
+      }
+      console.log(err);
+      throw new HttpException('Something went wrong', 500);
     }
   }
 

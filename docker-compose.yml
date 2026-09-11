@@ -1,0 +1,56 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: catholic-memorabilia-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: catholic_memorabilia
+      DATABASE_SYNC: 'true'
+      DATABASE_MIGRATIONS_RUN: 'true'
+      JWT_SECRET: change-me-super-secret
+      FE_APP: http://localhost:4200
+      FIREBASE_API_KEY: change-me
+      FIREBASE_AUTH_DOMAIN: change-me
+      FIREBASE_PROJECT_ID: change-me
+      FIREBASE_STORAGE_BUCKET: change-me
+      FIREBASE_MESSAGING_SENDER_ID: change-me
+      FIREBASE_APP_ID: change-me
+      MAIL_HOST: smtp.example.com
+      MAIL_PORT: 587
+      MAIL_SECURE: 'true'
+      MAIL_USER: change-me
+      MAIL_PASS: change-me
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: catholic-memorabilia-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: catholic_memorabilia
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d catholic_memorabilia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

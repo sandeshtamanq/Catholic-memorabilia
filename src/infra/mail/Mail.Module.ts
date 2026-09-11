@@ -8,19 +8,19 @@ import { MailService } from './Mail.Service';
   imports: [
     MailerModule.forRoot({
       transport: {
-        host: process.env.MAIL_HOST,
-        port: +process.env.MAIL_PORT,
-        secure: true,
+        host: process.env.MAIL_HOST ?? 'smtp.example.com',
+        port: Number(process.env.MAIL_PORT ?? 587),
+        secure: (process.env.MAIL_SECURE ?? 'true').toLowerCase() === 'true',
         auth: {
-          user: process.env.MAIL_USER,
-          pass: process.env.MAIL_PASS,
+          user: process.env.MAIL_USER ?? 'change-me',
+          pass: process.env.MAIL_PASS ?? 'change-me',
         },
       },
       defaults: {
         from: '"No Reply" <noreply@example.com>',
       },
       template: {
-        dir: join(__dirname, '../../lib/templates'),
+        dir: join(process.cwd(), process.env.NODE_ENV === 'production' ? 'dist/lib/templates' : 'src/lib/templates'),
         adapter: new HandlebarsAdapter(), // or new PugAdapter() or new EjsAdapter()
         options: {
           strict: true,

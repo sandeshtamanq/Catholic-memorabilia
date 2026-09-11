@@ -38,6 +38,7 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      role: user.role,
     };
     const token = await this.generateJwt(payload);
     return { user, token };

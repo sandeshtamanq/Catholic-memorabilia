@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/CreateUserDto';
 import { UserRepository } from './User.Repository';
 
@@ -18,6 +23,19 @@ export class UserService {
       return user;
     } catch (err) {
       throw new BadRequestException();
+    }
+  }
+
+  async findOne(id: number) {
+    try {
+      const user = await this.userRepository.findOne(id);
+      if (!user) {
+        throw new NotFoundException();
+      }
+
+      return user;
+    } catch (err) {
+      throw new HttpException('Something went wrong', 500);
     }
   }
 

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { FirebaseModule } from '../../infra/firebase/Firebase.Module';
+import { FirebaseModule } from '../../infra/supabase/Supabase.Module';
 import { ProductController } from './Product.Controller';
 import { ProductRepository } from './Product.Repository';
 import { ProductService } from './Product.Service';

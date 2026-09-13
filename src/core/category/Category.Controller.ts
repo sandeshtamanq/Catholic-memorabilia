@@ -11,7 +11,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { hasRoles } from '../../lib/decorators/Roles.Decorator';
 import { JwtAuthGuard } from '../auth/guards/JwtAuth.Guard';
 import { UserRole } from '../user/entities/UserRole.Enum';
@@ -19,6 +19,7 @@ import { CategoryService } from './Category.Service';
 import { CreateCategoryDto } from './dto/CreateCategoryDto';
 import { UpdateCategoryDto } from './dto/UpdateCategoryDto';
 import { RolesGuard } from '../auth/guards/Roles.Guard';
+import { Category } from './entities/Category.Entity';
 
 @ApiTags('categories')
 @Controller('categories')
@@ -27,6 +28,7 @@ export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
   @Get()
+  @ApiResponse({ type: Category })
   fetchAll() {
     return this.categoryService.fetchAll();
   }

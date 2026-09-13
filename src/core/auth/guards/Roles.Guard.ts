@@ -16,7 +16,6 @@ export class RolesGuard implements CanActivate {
     }
 
     const { user } = ctx.switchToHttp().getRequest();
-    console.log(user);
 
     let hasAccess: boolean;
 

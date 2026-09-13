@@ -35,6 +35,7 @@ export class AuthController {
     );
 
     const userResponse = instanceToPlain(data);
+    console.log(userResponse);
 
     response
       .cookie('token', data.token, {
@@ -45,7 +46,7 @@ export class AuthController {
         sameSite: 'none',
       })
       .send({
-        ...userResponse.user,
+        token: userResponse.token,
       });
   }
 

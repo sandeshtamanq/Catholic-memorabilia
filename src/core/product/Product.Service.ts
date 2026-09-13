@@ -1,5 +1,5 @@
 import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
-import { FirebaseService } from '../../infra/firebase/FIrebase.Service';
+import { S3StorageService } from '../../infra/supabase/Supabase.Service';
 import { ProductRepository } from './Product.Repository';
 import { CreateProductDto } from './dto/CreateProductDto';
 import { UpdateProductDto } from './dto/UpdateProductDto';
@@ -8,14 +8,16 @@ import { UpdateProductDto } from './dto/UpdateProductDto';
 export class ProductService {
   constructor(
     private readonly productRepository: ProductRepository,
-    private readonly firebaseService: FirebaseService,
+    private readonly supabaseService: S3StorageService,
   ) {}
 
   async create(file: Express.Multer.File, createProductDto: CreateProductDto) {
     try {
-      const imageUrl = await this.firebaseService.uploadFile(
+      const path = `products/${Date.now()}-${file.originalname}`;
+      const imageUrl = await this.supabaseService.uploadFile(
+        'proj',
+        path,
         file,
-        'product-images',
       );
 
       const newProduct = await this.productRepository.create({
@@ -27,6 +29,7 @@ export class ProductService {
 
       return newProduct;
     } catch (err) {
+      console.log(err);
       err;
     }
   }
@@ -54,30 +57,27 @@ export class ProductService {
   }
 
   async update(id: number, updateProductDto: UpdateProductDto) {
-    try {
-      const product = await this.productRepository.findOne(id);
-      if (!product) throw new NotFoundException();
-      if (updateProductDto.productImage) {
-        product.productImageUrl = await this.firebaseService.uploadFile(
-          updateProductDto.productImage,
-          'product-images',
-        );
-      }
-      const { category, ...restProduct } = product;
-
-      const newProduct = await this.productRepository.update({
-        ...restProduct,
-        ...updateProductDto,
-      });
-
-      if (!newProduct) throw new NotFoundException();
-
-      return newProduct;
-    } catch (err) {
-      if (err instanceof NotFoundException)
-        throw new HttpException('Could not update the service', 400);
-      throw new HttpException('Something went wrong', 500);
-    }
+    // try {
+    //   const product = await this.productRepository.findOne(id);
+    //   if (!product) throw new NotFoundException();
+    //   if (updateProductDto.productImage) {
+    //     product.productImageUrl = await this.firebaseService.uploadFile(
+    //       updateProductDto.productImage,
+    //       'product-images',
+    //     );
+    //   }
+    //   const { category, ...restProduct } = product;
+    //   const newProduct = await this.productRepository.update({
+    //     ...restProduct,
+    //     ...updateProductDto,
+    //   });
+    //   if (!newProduct) throw new NotFoundException();
+    //   return newProduct;
+    // } catch (err) {
+    //   if (err instanceof NotFoundException)
+    //     throw new HttpException('Could not update the service', 400);
+    //   throw new HttpException('Something went wrong', 500);
+    // }
   }
 
   async delete(id: number) {

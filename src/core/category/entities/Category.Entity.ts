@@ -45,7 +45,4 @@ export class Category {
       this.categoryName[0].toUpperCase() +
       this.categoryName.toLowerCase().slice(1);
   }
-
-  @ApiProperty()
-  rating: number;
 }

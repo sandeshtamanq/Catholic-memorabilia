@@ -51,14 +51,6 @@ export class Product {
   productImageUrl: string;
 
   @ApiProperty()
-  @Column({ type: 'int', default: 0 })
-  bookings: number;
-
-  @ApiProperty()
   @Column({ type: 'varchar', nullable: false })
   productPrice: string;
-
-  //virtual property
-  @ApiProperty()
-  rating: number;
 }

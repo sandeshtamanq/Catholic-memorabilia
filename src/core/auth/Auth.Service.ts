@@ -4,13 +4,13 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { LogInDto } from './dto/LoginDto';
 import { SignUpDto } from './dto/SignUpDto';
 import * as bcrypt from 'bcrypt';
 import { User } from '../user/entities/User.Entity';
 import { UserService } from '../user/User.Service';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from '../../infra/mail/Mail.Service';
+import { CartItem, CartService } from '../cart/Cart.Service';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +18,7 @@ export class AuthService {
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly cartService: CartService,
   ) {}
 
   async validateUser(username: string, password: string) {
@@ -32,7 +33,7 @@ export class AuthService {
     return user;
   }
 
-  async login(user: User) {
+  async login(user: User, guestId?: string) {
     const payload = {
       id: user.id,
       firstName: user.firstName,
@@ -41,7 +42,11 @@ export class AuthService {
       role: user.role,
     };
     const token = await this.generateJwt(payload);
-    return { user, token };
+    const cart = guestId
+      ? this.cartService.mergeGuestCartIntoUser(guestId, user.id)
+      : this.cartService.getUserCart(user.id);
+
+    return { user, token, cart, isGuest: false };
   }
 
   async signUp(signUpDto: SignUpDto) {
@@ -67,7 +72,6 @@ export class AuthService {
       );
       await this.mailService.sendUserConfirmation(user, token);
       return user;
-      return user;
     } catch (err) {
       if (err instanceof BadRequestException) {
         throw new BadRequestException('User already exists!');
@@ -75,6 +79,16 @@ export class AuthService {
       console.log(err);
       throw new HttpException('Something went wrong', 500);
     }
+  }
+
+  async createGuestSession(guestId?: string, cart: CartItem[] = []) {
+    const sessionId = guestId ?? `guest-${Date.now()}`;
+    this.cartService.setGuestCart(sessionId, cart);
+    return {
+      guestId: sessionId,
+      cart: this.cartService.getGuestCart(sessionId),
+      isGuest: true,
+    };
   }
 
   async hashPassword(password: string): Promise<string> {

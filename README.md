@@ -168,10 +168,19 @@ Services:
 ### Auth
 
 - `POST /auth/sign-up` — create a new account
-- `POST /auth/login` — login and receive a JWT token
+- `POST /auth/login` — login and receive a JWT token and any merged guest cart
+- `POST /auth/guest` — create a guest checkout session and return a guest cart
+- `POST /auth/guest-checkout` — alias for guest-session creation
+- `POST /auth/guest-login` — alias for guest-session creation
 - `GET /auth/test` — protected test route using JWT
 
 ### Users
+
+### Cart
+
+- `GET /cart` — fetch the active cart for the signed-in user or guest session
+- `POST /cart` — add an item to the current cart
+- `DELETE /cart/:id` — remove an item from the current cart
 
 - `GET /users/me` — fetch the authenticated user profile
 

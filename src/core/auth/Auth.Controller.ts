@@ -30,12 +30,11 @@ export class AuthController {
   @Post('login')
   @ApiBody({ type: LogInDto })
   async login(@Req() req: any, @Res() response: Response) {
-    const data: { user: User; token: string } = await this.authService.login(
-      req.user,
-    );
+    const guestId = req.cookies?.guestId ?? req.body?.guestId;
+    const data: { user: User; token: string; cart: any[]; isGuest: boolean } =
+      await this.authService.login(req.user, guestId);
 
     const userResponse = instanceToPlain(data);
-    console.log(userResponse);
 
     response
       .cookie('token', data.token, {
@@ -45,9 +44,30 @@ export class AuthController {
         expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14),
         sameSite: 'none',
       })
+      .clearCookie('guestId')
       .send({
         token: userResponse.token,
+        user: userResponse.user,
+        cart: userResponse.cart ?? [],
+        isGuest: userResponse.isGuest,
       });
+  }
+
+  @Post(['guest', 'guest-checkout', 'guest-login'])
+  async guestCheckout(@Req() req: any, @Res() response: Response) {
+    const guestId = req.cookies?.guestId ?? req.body?.guestId ?? `guest-${Date.now()}`;
+    const cart = req.body?.cart ?? [];
+    const result = await this.authService.createGuestSession(guestId, cart);
+
+    response
+      .cookie('guestId', result.guestId, {
+        httpOnly: true,
+        secure: true,
+        maxAge: 1000 * 60 * 60 * 24 * 14,
+        expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14),
+        sameSite: 'none',
+      })
+      .send(result);
   }
 
   @Post('sign-up')

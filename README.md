@@ -1,251 +1,73 @@
-# Catholic Memorabilia API
+<p align="center">
+  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
+</p>
 
-Backend service for the Catholic Memorabilia platform, built with NestJS and TypeORM. The API supports authentication, role-based access control, category management, product catalog management, and email-based account flows for a Catholic merchandise storefront.
+[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+[circleci-url]: https://circleci.com/gh/nestjs/nest
 
-## Overview
+  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p align="center">
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
+<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
+<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
+<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
+<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
+  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
+    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
+  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
+</p>
+  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
+  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
-This project provides the server-side foundation for a catalog and storefront application where:
+## Description
 
-- users can sign up and log in
-- admin users can manage categories and products
-- public endpoints expose categories and products
-- product images are uploaded and stored through a file-storage service
-- email notifications are sent for account verification and password reset flows
-- Swagger documentation is available for API exploration
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-## Tech stack
-
-- Node.js 20
-- NestJS 10
-- TypeScript
-- PostgreSQL
-- TypeORM
-- Passport + JWT authentication
-- Swagger/OpenAPI
-- Docker + Docker Compose
-- AWS S3-compatible storage via Supabase storage client
-- Nodemailer / Nest mailer
-
-## Project structure
-
-```text
-src/
-├── app.module.ts
-├── main.ts
-├── config/
-│   ├── AppConfig.ts
-│   └── DatabaseConfig.ts
-├── core/
-│   ├── auth/
-│   ├── category/
-│   ├── product/
-│   └── user/
-├── infra/
-│   ├── mail/
-│   └── supabase/
-├── lib/
-│   ├── decorators/
-│   ├── templates/
-│   └── utils/
-└── test/
-```
-
-## Features
-
-### Authentication and users
-
-- user sign-up with strong password validation
-- login with email and password
-- JWT-based protected routes
-- user role support: `Admin` and `User`
-- current user profile endpoint
-- email verification flow during sign-up
-
-### Catalog management
-
-- create, list, update, and delete categories
-- create, list, update, and delete products
-- category/product relation using TypeORM
-- product image upload support via multipart form-data
-
-### Security
-
-- JWT guard on protected API routes
-- role guard for admin-only actions
-- validation pipe for request DTO validation
-- helmet, compression, and cookie parsing enabled in the application bootstrap
-
-## Prerequisites
-
-Before starting the app, install:
-
-- Node.js 20+
-- npm
-- PostgreSQL 16+ or Docker
-
-## Environment configuration
-
-The app loads environment files from the `env` directory. For local development, create a file named `env/local.env` and populate it using the values from `.env.example` as a reference.
-
-Example:
+## Installation
 
 ```bash
-mkdir -p env
-cp .env.example env/local.env
+$ npm install
 ```
 
-Required variables include:
-
-```env
-NODE_ENV=local
-PORT=3000
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
-DATABASE_USER=postgres
-DATABASE_PASSWORD=postgres
-DATABASE_NAME=catholic_memorabilia
-DATABASE_SYNC=true
-DATABASE_MIGRATIONS_RUN=true
-JWT_SECRET=change-me-super-secret
-FE_APP=http://localhost:4200
-MAIL_HOST=smtp.example.com
-MAIL_PORT=587
-MAIL_SECURE=true
-MAIL_USER=change-me
-MAIL_PASS=change-me
-```
-
-If you use Supabase storage for uploaded product images, add the S3/storage-related values expected by the app as well (for example `SUPABASE_S3_ENDPOINT`, `SUPABASE_S3_REGION`, and the access credentials).
-
-## Local development
-
-Install dependencies:
+## Running the app
 
 ```bash
-npm install
+# development
+$ npm run start
+
+# watch mode
+$ npm run start:dev
+
+# production mode
+$ npm run start:prod
 ```
 
-Start the app in watch mode:
+## Test
 
 ```bash
-npm run start:dev
+# unit tests
+$ npm run test
+
+# e2e tests
+$ npm run test:e2e
+
+# test coverage
+$ npm run test:cov
 ```
 
-The API will run on:
+## Support
 
-```text
-http://localhost:3000
-```
+Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
 
-Swagger UI is available at:
+## Stay in touch
 
-```text
-http://localhost:3000/docs
-```
-
-## Production build
-
-```bash
-npm run build
-npm run start:prod
-```
-
-## Docker setup
-
-This repository includes a Docker Compose setup for running the API and PostgreSQL together.
-
-```bash
-docker compose up --build
-```
-
-Services:
-
-- API: `http://localhost:3000`
-- PostgreSQL: `localhost:5432`
-
-## Available API endpoints
-
-### Auth
-
-- `POST /auth/sign-up` — create a new account
-- `POST /auth/login` — login and receive a JWT token
-- `GET /auth/test` — protected test route using JWT
-
-### Users
-
-- `GET /users/me` — fetch the authenticated user profile
-
-### Categories
-
-- `GET /categories` — list categories
-- `POST /categories` — create category (admin only)
-- `PATCH /categories/:id` — update category (admin only)
-- `DELETE /categories/:id` — delete category (admin only)
-
-### Products
-
-- `GET /products` — list all products
-- `POST /products` — create product with image upload (admin only)
-- `GET /products/:id` — fetch product detail (admin only)
-- `PATCH /products/:id` — update product and image (admin only)
-- `DELETE /products/:id` — delete product (admin only)
-
-## Example payloads
-
-### Sign up
-
-```json
-{
-  "firstName": "John",
-  "lastName": "Doe",
-  "email": "john@example.com",
-  "contactNumber": "+61412345678",
-  "address": "123 Main Street",
-  "password": "StrongPass123!"
-}
-```
-
-### Login
-
-```json
-{
-  "email": "john@example.com",
-  "password": "StrongPass123!"
-}
-```
-
-### Create category
-
-```json
-{
-  "categoryName": "Sacred Art"
-}
-```
-
-### Create product
-
-Use multipart form-data with fields:
-
-- `productName`
-- `productDescription`
-- `productPrice`
-- `categoryId`
-- `productImage` (file upload)
-
-## Testing
-
-```bash
-npm run test
-npm run test:e2e
-npm run test:cov
-```
+- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
+- Website - [https://nestjs.com](https://nestjs.com/)
+- Twitter - [@nestframework](https://twitter.com/nestframework)
 
 ## License
 
-This project is currently unlicensed in the package metadata (`"license": "UNLICENSED"`).
-
-## Notes
-
-- The app uses `DATABASE_SYNC=true` and `DATABASE_MIGRATIONS_RUN=true` in the default configuration for local setup.
-- Some integrations such as Supabase storage, Firebase, and email delivery are wired into the application and require valid credentials in the environment.
-- The app title and Swagger documentation are configured in `src/main.ts` under the `Catholic-memorabilia` project name.
+Nest is [MIT licensed](LICENSE).

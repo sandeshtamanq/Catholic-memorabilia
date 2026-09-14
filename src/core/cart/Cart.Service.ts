@@ -1,8 +1,4 @@
-import {
-  HttpException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { AddToCartDto } from './dto/AddToCartDto';
 import { UpdateCartItemDto } from './dto/UpdateCartItemDto';
 import { CartRepository } from './Cart.Repository';
@@ -27,7 +23,9 @@ export class CartService {
 
   async addItem(userId: number, addToCartDto: AddToCartDto) {
     try {
-      const product = await this.cartRepository.getProductById(addToCartDto.productId);
+      const product = await this.cartRepository.getProductById(
+        addToCartDto.productId,
+      );
 
       if (!product) {
         throw new NotFoundException('Product not found');
@@ -44,6 +42,7 @@ export class CartService {
         addToCartDto.productId,
       );
 
+      // Changing the type from string to integer
       const unitPrice = Number(product.productPrice);
 
       if (existingItem) {

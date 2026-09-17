@@ -21,7 +21,7 @@ import { User } from '../user/entities/User.Entity';
 import { instanceToPlain } from 'class-transformer';
 
 @ApiTags('auth')
-@Controller('auth')
+@Controller('api/auth')
 @UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

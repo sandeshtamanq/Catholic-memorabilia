@@ -13,7 +13,7 @@ import { CurrentUser } from '../../lib/decorators/CurrentUser.Decorator';
 import { UserService } from './User.Service';
 
 @ApiTags('users')
-@Controller('users')
+@Controller('api/users')
 @UseInterceptors(ClassSerializerInterceptor)
 export class UserController {
   constructor(private readonly userService: UserService) {}

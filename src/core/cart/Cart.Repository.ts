@@ -30,6 +30,7 @@ export class CartRepository {
   }
 
   async createCart(userId: number) {
+    console.log(userId);
     const cart = this.cartRepository.create({
       userId,
       totalItems: 0,

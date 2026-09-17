@@ -22,7 +22,7 @@ import { RolesGuard } from '../auth/guards/Roles.Guard';
 import { Category } from './entities/Category.Entity';
 
 @ApiTags('categories')
-@Controller('categories')
+@Controller('api/categories')
 @UseInterceptors(ClassSerializerInterceptor)
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}

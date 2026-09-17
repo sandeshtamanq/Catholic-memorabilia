@@ -13,6 +13,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserRole } from './UserRole.Enum';
+import { Cart } from '../../cart/entities/Cart.Entity';
 @Entity({ name: 'users' })
 @Unique(['email'])
 export class User extends BaseEntity {
@@ -51,6 +52,9 @@ export class User extends BaseEntity {
   @ApiProperty()
   @Column({ type: 'boolean', default: false })
   isEmailVerified: boolean;
+
+  @OneToMany(() => Cart, (cart) => cart.user)
+  user: Cart[];
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp', nullable: false })

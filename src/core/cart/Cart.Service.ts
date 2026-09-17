@@ -17,6 +17,7 @@ export class CartService {
 
       return cart;
     } catch (error) {
+      console.log(error);
       throw new HttpException('Something went wrong', 500);
     }
   }

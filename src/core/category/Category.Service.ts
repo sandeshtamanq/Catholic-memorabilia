@@ -51,7 +51,9 @@ export class CategoryService {
       if (!detail) throw new NotFoundException('Not found');
       return detail;
     } catch (err) {
-      throw new HttpException('Something went wrong', 500);
+      if (err instanceof NotFoundException) {
+        throw new NotFoundException('Category not found');
+      } else throw new HttpException('Something went wrong', 500);
     }
   }
 

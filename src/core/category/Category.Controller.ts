@@ -52,10 +52,10 @@ export class CategoryController {
     return this.categoryService.update(id, updateCategoryDto);
   }
 
-  //   @Get(':id')
-  //   fetchDetail(@Param('id', ParseIntPipe) id: number) {
-  //     return this.categoryService.fetchDetail(id);
-  //   }
+  @Get(':id')
+  fetchDetail(@Param('id', ParseIntPipe) id: number) {
+    return this.categoryService.fetchDetail(id);
+  }
 
   @ApiBearerAuth()
   @hasRoles(UserRole.Admin)

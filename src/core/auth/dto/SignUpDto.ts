@@ -44,8 +44,34 @@ export class SignUpDto {
 
   @ApiProperty({ required: true })
   @IsString()
+  @IsNotEmpty()
+  addressLine1: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
   @IsOptional()
-  address?: string;
+  addressLine2?: string;
+
+  @ApiProperty({ required: true })
+  @IsString()
+  @IsNotEmpty()
+  suburb: string;
+
+  @ApiProperty({ required: true })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^(ACT|NSW|NT|QLD|SA|TAS|VIC|WA)$/, {
+    message: 'Please enter a valid Australian state.',
+  })
+  state: string;
+
+  @ApiProperty({ required: true })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^\d{4}$/, {
+    message: 'Please enter a valid 4-digit postcode.',
+  })
+  postcode: string;
 
   @ApiProperty({ required: true })
   @IsString()

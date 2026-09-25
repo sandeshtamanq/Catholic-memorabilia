@@ -1,7 +1,9 @@
-import { InjectRepository } from '@nestjs/typeorm';
-import { User } from './entities/User.Entity';
-import { Repository } from 'typeorm';
 import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { UserTypeParamDto } from '../../lib/utils/UserTypeParamDto';
+import { User } from './entities/User.Entity';
+import { UserRole } from './entities/UserRole.Enum';
 
 @Injectable()
 export class UserRepository {
@@ -10,20 +12,26 @@ export class UserRepository {
   ) {}
   async create(user: Partial<User>) {
     try {
-      console.log(user);
       const createdUser = await this.repository.save(
         this.repository.create(user),
       );
-      console.log('createdUser');
       if (!createdUser) {
         return null;
       }
-      console.log(createdUser);
       return this.findOne(createdUser.id);
     } catch (err) {
-      console.log(err);
       return null;
     }
+  }
+
+  async find(userType: UserTypeParamDto) {
+    const query = this.repository.createQueryBuilder('u');
+    if (userType.userType === UserRole.User) {
+      query.where('u.role = :role', { role: userType.userType });
+    } else {
+      query.where('u.role = :role', { role: userType.userType });
+    }
+    return query.getMany();
   }
 
   async findOne(id: number) {
@@ -38,5 +46,25 @@ export class UserRepository {
       .createQueryBuilder('u')
       .where('u.email = :email', { email: by.email })
       .getOne();
+  }
+
+  async update(user: Partial<User>) {
+    try {
+      const preloaded = await this.repository.preload({ ...user });
+
+      const updatedUser = await this.repository.save({ ...preloaded });
+
+      if (!updatedUser) {
+        return null;
+      }
+
+      return this.findOne(updatedUser.id);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async softRemove(user: Partial<User>) {
+    await this.repository.softRemove(user);
   }
 }

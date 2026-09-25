@@ -2,7 +2,7 @@ import {
   Body,
   ClassSerializerInterceptor,
   Controller,
-  Get,
+  Patch,
   Post,
   Req,
   Res,
@@ -10,18 +10,22 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
-import { LogInDto } from './dto/LoginDto';
-import { SignUpDto } from './dto/SignUpDto';
-import { AuthService } from './Auth.Service';
-import { LocalAuthGuard } from './guards/LocalAuth.Guard';
+import { instanceToPlain } from 'class-transformer';
 import { Response } from 'express';
-import { JwtAuthGuard } from './guards/JwtAuth.Guard';
 import { CurrentUser } from '../../lib/decorators/CurrentUser.Decorator';
 import { User } from '../user/entities/User.Entity';
-import { instanceToPlain } from 'class-transformer';
+import { AuthService } from './Auth.Service';
+import { ChangePasswordDto } from './dto/ChangePasswordDto';
+import { ForgotPasswordDto } from './dto/ForgotPasswordDto';
+import { LogInDto } from './dto/LoginDto';
+import { ResetPasswordDto } from './dto/ResetPasswordDto';
+import { SignUpDto } from './dto/SignUpDto';
+import { VerifyEmailDto } from './dto/VerifyEmailDto';
+import { JwtAuthGuard } from './guards/JwtAuth.Guard';
+import { LocalAuthGuard } from './guards/LocalAuth.Guard';
 
 @ApiTags('auth')
-@Controller('api/auth')
+@Controller('auth')
 @UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -35,7 +39,6 @@ export class AuthController {
     );
 
     const userResponse = instanceToPlain(data);
-    console.log(userResponse);
 
     response
       .cookie('token', data.token, {
@@ -46,7 +49,7 @@ export class AuthController {
         sameSite: 'none',
       })
       .send({
-        token: userResponse.token,
+        ...userResponse.user,
       });
   }
 
@@ -55,10 +58,35 @@ export class AuthController {
     return this.authService.signUp(signUpDto);
   }
 
+  @Post('verify-email')
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    return this.authService.verifyEmail(verifyEmailDto);
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Patch('reset-password')
+  async resetPassword(@Body() resetpasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetpasswordDto);
+  }
+
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
-  @Get('test')
-  test(@CurrentUser() user: number) {
-    return 'sup';
+  @Patch('change-password')
+  async changePassword(
+    @Body() changePasswordDto: ChangePasswordDto,
+    @CurrentUser() userId: number,
+  ) {
+    return this.authService.changePassword(changePasswordDto, userId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post('sign-out')
+  async logout(@Res() response: Response) {
+    response.clearCookie('token').send();
   }
 }

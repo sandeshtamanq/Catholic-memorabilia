@@ -22,6 +22,7 @@ export class UserController {
   @ApiResponse({ type: User })
   @Get('me')
   getMe(@CurrentUser() userId: number) {
+    console.log('userId');
     return this.userService.findOne(userId);
   }
 }

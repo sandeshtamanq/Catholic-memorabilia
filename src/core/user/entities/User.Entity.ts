@@ -26,6 +26,10 @@ export class User extends BaseEntity {
   firstName: string;
 
   @ApiProperty()
+  @Column({ type: 'varchar', nullable: true })
+  middleName?: string;
+
+  @ApiProperty()
   @Column({ type: 'varchar', nullable: false })
   lastName: string;
 
@@ -35,15 +39,31 @@ export class User extends BaseEntity {
 
   @ApiProperty()
   @Column({ type: 'varchar', nullable: false })
-  contactNumber: number;
+  contactNumber: string;
 
   @Exclude()
   @Column({ type: 'varchar', nullable: false })
   password: string;
 
   @ApiProperty()
+  @Column({ type: 'varchar', nullable: false })
+  addressLine1: string;
+
+  @ApiProperty()
   @Column({ type: 'varchar', nullable: true })
-  address?: string;
+  addressLine2?: string;
+
+  @ApiProperty()
+  @Column({ type: 'varchar', nullable: false })
+  suburb: string;
+
+  @ApiProperty()
+  @Column({ type: 'varchar', nullable: false })
+  state: string;
+
+  @ApiProperty()
+  @Column({ type: 'varchar', nullable: false })
+  postcode: string;
 
   @ApiProperty()
   @Column({ type: 'varchar', default: UserRole.User })

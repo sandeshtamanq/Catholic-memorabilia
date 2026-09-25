@@ -28,10 +28,7 @@ export class ProductService {
       if (!newProduct) throw new HttpException('Something went wrong', 500);
 
       return newProduct;
-    } catch (err) {
-      console.log(err);
-      err;
-    }
+    } catch (err) {}
   }
 
   async fetchAll() {

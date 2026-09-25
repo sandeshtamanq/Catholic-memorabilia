@@ -40,7 +40,6 @@ export class ProductRepository {
       if (!updateProduct) return null;
       return updateProduct;
     } catch (err) {
-      console.log(err);
       return null;
     }
   }

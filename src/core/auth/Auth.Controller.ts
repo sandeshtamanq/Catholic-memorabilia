@@ -25,7 +25,7 @@ import { JwtAuthGuard } from './guards/JwtAuth.Guard';
 import { LocalAuthGuard } from './guards/LocalAuth.Guard';
 
 @ApiTags('auth')
-@Controller('auth')
+@Controller('api/auth')
 @UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}

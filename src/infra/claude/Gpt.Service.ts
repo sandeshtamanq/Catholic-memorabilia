@@ -6,9 +6,8 @@ import {
 import { GeneratedProductDto } from '../../core/product/dto/GenerateProductDto';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-6'; // pick the model your account has access to
+const MODEL = 'claude-sonnet-4-6';
 
-// Adjust this list to match your store's real categories.
 const ALLOWED_CATEGORIES = [
   'rosary beads',
   'crosses',

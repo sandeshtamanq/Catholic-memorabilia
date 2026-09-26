@@ -2,8 +2,11 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   ParseIntPipe,
   Patch,
   Post,
@@ -21,6 +24,10 @@ import { UserRole } from '../user/entities/UserRole.Enum';
 import { ProductService } from './Product.Service';
 import { CreateProductDto } from './dto/CreateProductDto';
 import { UpdateProductDto } from './dto/UpdateProductDto';
+import {
+  GeneratedProductDto,
+  GenerateProductDto,
+} from './dto/GenerateProductDto';
 
 @ApiTags('products')
 @Controller('api/products')
@@ -76,5 +83,18 @@ export class ProductController {
   @Delete(':id')
   delete(@Param('id', ParseIntPipe) id: number) {
     return this.productService.delete(id);
+  }
+
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('productImage'))
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @hasRoles(UserRole.Admin)
+  @Post('generate-listing')
+  generateListing(
+    @Body() generateProductDto: GenerateProductDto,
+    @UploadedFile() productImage: Express.Multer.File,
+  ): Promise<GeneratedProductDto> {
+    return this.productService.generateFromImage(productImage);
   }
 }

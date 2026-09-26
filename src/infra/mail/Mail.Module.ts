@@ -20,8 +20,13 @@ import { MailService } from './Mail.Service';
         from: '"No Reply" <noreply@example.com>',
       },
       template: {
-        dir: join(process.cwd(), process.env.NODE_ENV === 'production' ? 'dist/lib/templates' : 'src/lib/templates'),
-        adapter: new HandlebarsAdapter(), // or new PugAdapter() or new EjsAdapter()
+        dir: join(
+          process.cwd(),
+          process.env.NODE_ENV === 'production'
+            ? 'dist/lib/templates'
+            : 'src/lib/templates',
+        ),
+        adapter: new HandlebarsAdapter(),
         options: {
           strict: true,
         },
@@ -29,6 +34,6 @@ import { MailService } from './Mail.Service';
     }),
   ],
   providers: [MailService],
-  exports: [MailService], // 👈 export for DI
+  exports: [MailService],
 })
 export class MailModule {}

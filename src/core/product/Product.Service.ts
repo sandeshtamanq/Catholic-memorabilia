@@ -3,12 +3,14 @@ import { S3StorageService } from '../../infra/supabase/Supabase.Service';
 import { ProductRepository } from './Product.Repository';
 import { CreateProductDto } from './dto/CreateProductDto';
 import { UpdateProductDto } from './dto/UpdateProductDto';
+import { GptService } from '../../infra/claude/Gpt.Service';
 
 @Injectable()
 export class ProductService {
   constructor(
     private readonly productRepository: ProductRepository,
     private readonly supabaseService: S3StorageService,
+    private readonly gptService: GptService,
   ) {}
 
   async create(file: Express.Multer.File, createProductDto: CreateProductDto) {
@@ -51,6 +53,11 @@ export class ProductService {
     } catch (err) {
       throw new HttpException('Something went wrong', 500);
     }
+  }
+
+  async generateFromImage(file: Express.Multer.File) {
+    const gptResponse = await this.gptService.generateFromImage(file);
+    return gptResponse;
   }
 
   async update(id: number, updateProductDto: UpdateProductDto) {

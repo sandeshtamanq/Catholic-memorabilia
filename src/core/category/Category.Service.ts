@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  BadRequestException,
   HttpException,
   Injectable,
   NotFoundException,
@@ -7,10 +8,14 @@ import {
 import { CategoryRepository } from './Category.Repository';
 import { CreateCategoryDto } from './dto/CreateCategoryDto';
 import { UpdateCategoryDto } from './dto/UpdateCategoryDto';
+import { ProductService } from '../product/Product.Service';
 
 @Injectable()
 export class CategoryService {
-  constructor(private readonly categoryRepository: CategoryRepository) {}
+  constructor(
+    private readonly categoryRepository: CategoryRepository,
+    private readonly productService: ProductService,
+  ) {}
   async create(createCategoryDto: CreateCategoryDto) {
     try {
       const doesCategoryExist = await this.categoryRepository.findOneBy({
@@ -116,8 +121,20 @@ export class CategoryService {
     try {
       const category = await this.categoryRepository.findOne(id);
       if (!category) throw new NotFoundException();
-      await this.categoryRepository.softRemove(category);
+
+      const hasProducts = await this.productService.hasProducts(id);
+      if (hasProducts) {
+        throw new BadRequestException();
+      } else {
+        await this.categoryRepository.softRemove(category);
+      }
     } catch (err) {
+      if (err instanceof BadRequestException) {
+        throw new HttpException(
+          'Cannot delete category because it has products',
+          400,
+        );
+      }
       throw new HttpException('Something went wrong', 500);
     }
   }

@@ -45,12 +45,54 @@ export class ProductService {
     }
   }
 
+  async fetchNewArrivals(limit = 8) {
+    return this.productRepository.findNewArrivals(limit);
+  }
+
+  async fetchFeaturedProducts(limit = 8) {
+    return this.productRepository.findFeaturedProducts(limit);
+  }
+
+  async fetchOfferProducts(limit = 8) {
+    return this.productRepository.findOfferProducts(limit);
+  }
+
+  async fetchJustForYou(limit = 8) {
+    return this.productRepository.findJustForYou(limit);
+  }
+
+  async searchByCategory({
+    categoryId,
+    categoryName,
+  }: {
+    categoryId?: number;
+    categoryName?: string;
+  }) {
+    return this.productRepository.findCategoryMatches({
+      categoryId,
+      categoryName,
+    });
+  }
+
+  async fetchRelatedProducts(categoryId: number, limit = 8) {
+    return this.productRepository.findRelatedProducts(categoryId, limit);
+  }
+
+  async hasProducts(categoryId: number): Promise<boolean> {
+    const count = await this.productRepository.count(categoryId);
+
+    return count > 0;
+  }
+
   async fetchDetail(id: number) {
     try {
       const productDetail = await this.productRepository.findOne(id);
       if (!productDetail) throw new NotFoundException();
       return productDetail;
     } catch (err) {
+      if (err instanceof NotFoundException) {
+        return new NotFoundException();
+      }
       throw new HttpException('Something went wrong', 500);
     }
   }
@@ -61,27 +103,30 @@ export class ProductService {
   }
 
   async update(id: number, updateProductDto: UpdateProductDto) {
-    // try {
-    //   const product = await this.productRepository.findOne(id);
-    //   if (!product) throw new NotFoundException();
-    //   if (updateProductDto.productImage) {
-    //     product.productImageUrl = await this.firebaseService.uploadFile(
-    //       updateProductDto.productImage,
-    //       'product-images',
-    //     );
-    //   }
-    //   const { category, ...restProduct } = product;
-    //   const newProduct = await this.productRepository.update({
-    //     ...restProduct,
-    //     ...updateProductDto,
-    //   });
-    //   if (!newProduct) throw new NotFoundException();
-    //   return newProduct;
-    // } catch (err) {
-    //   if (err instanceof NotFoundException)
-    //     throw new HttpException('Could not update the service', 400);
-    //   throw new HttpException('Something went wrong', 500);
-    // }
+    try {
+      const product = await this.productRepository.findOne(id);
+      if (!product) throw new NotFoundException();
+      if (updateProductDto.productImage) {
+        const path = `products/${Date.now()}-${updateProductDto.productImage.originalname}`;
+
+        product.productImageUrl = await await this.supabaseService.uploadFile(
+          'proj',
+          path,
+          updateProductDto.productImage,
+        );
+      }
+      const { category, ...restProduct } = product;
+      const newProduct = await this.productRepository.update({
+        ...restProduct,
+        ...updateProductDto,
+      });
+      if (!newProduct) throw new NotFoundException();
+      return newProduct;
+    } catch (err) {
+      if (err instanceof NotFoundException)
+        throw new HttpException('Could not update the service', 400);
+      throw new HttpException('Something went wrong', 500);
+    }
   }
 
   async delete(id: number) {

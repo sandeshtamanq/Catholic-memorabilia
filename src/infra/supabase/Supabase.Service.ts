@@ -27,6 +27,6 @@ export class S3StorageService {
       }),
     );
     // Public URL if the bucket is public:
-    return `${process.env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${key}`;
+    return `${process.env.SUPABASE_PUBLIC_URL}/object/public/${bucket}/${key}`;
   }
 }

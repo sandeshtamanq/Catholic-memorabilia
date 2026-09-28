@@ -31,7 +31,7 @@ export class Category {
   deletedAt?: Date;
 
   @OneToMany(() => Product, (product) => product.category, {
-    onDelete: 'CASCADE',
+    onDelete: 'RESTRICT',
   })
   products: Product[];
 

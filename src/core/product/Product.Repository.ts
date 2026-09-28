@@ -32,6 +32,101 @@ export class ProductRepository {
       .getMany();
   }
 
+  async findNewArrivals(limit = 8) {
+    return this.repository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.category', 'category')
+      .orderBy('p.createdAt', 'DESC')
+      .take(limit)
+      .getMany();
+  }
+
+  async findFeaturedProducts(limit = 8) {
+    return this.repository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.category', 'category')
+      .orderBy('p.updatedAt', 'DESC')
+      .take(limit)
+      .getMany();
+  }
+
+  async findOfferProducts(limit = 8) {
+    return this.repository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.category', 'category')
+      .where('p.isOffer = :isOffer OR p.discountPercentage > :minDiscount', {
+        isOffer: true,
+        minDiscount: 0,
+      })
+      .orderBy('p.discountPercentage', 'DESC')
+      .take(limit)
+      .getMany();
+  }
+
+  async findJustForYou(limit = 8) {
+    return this.repository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.category', 'category')
+      .orderBy('p.id', 'DESC')
+      .take(limit)
+      .getMany();
+  }
+
+  async findCategoryMatches({
+    categoryId,
+    categoryName,
+  }: {
+    categoryId?: number;
+    categoryName?: string;
+  }) {
+    const query = this.repository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.category', 'category');
+
+    if (categoryId) {
+      query.where('p.categoryId = :categoryId', { categoryId });
+    }
+
+    if (categoryName) {
+      const lowerName = categoryName.trim().toLowerCase();
+      if (categoryId) {
+        query.andWhere('LOWER(category.categoryName) LIKE :categoryName', {
+          categoryName: `%${lowerName}%`,
+        });
+      } else {
+        query.where('LOWER(category.categoryName) LIKE :categoryName', {
+          categoryName: `%${lowerName}%`,
+        });
+      }
+    }
+
+    return query.orderBy('p.createdAt', 'DESC').getMany();
+  }
+
+  async findRelatedProducts(categoryId: number, limit = 8) {
+    const query = this.repository
+      .createQueryBuilder('p')
+      .where('p.categoryId = :categoryId', { categoryId })
+      .leftJoinAndSelect('p.category', 'category');
+
+    // if (product?.categoryId) {
+    //   query.andWhere('p.categoryId = :categoryId', {
+    //     categoryId: product.categoryId,
+    //   });
+    // }
+
+    return query.orderBy('p.createdAt', 'DESC').take(limit).getMany();
+  }
+
+  async count(categoryId) {
+    return this.repository.count({
+      where: {
+        category: {
+          id: categoryId,
+        },
+      },
+    });
+  }
   async update(product: Partial<Product>) {
     try {
       const preloaded = await this.repository.preload({ ...product });

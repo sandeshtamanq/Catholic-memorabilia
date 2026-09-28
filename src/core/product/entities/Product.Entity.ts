@@ -53,4 +53,16 @@ export class Product {
   @ApiProperty()
   @Column({ type: 'varchar', nullable: false })
   productPrice: string;
+
+  @ApiProperty({ default: 0 })
+  @Column({ type: 'float', nullable: false, default: 0 })
+  discountPercentage: number;
+
+  @ApiProperty({ default: false })
+  @Column({ type: 'boolean', nullable: false, default: false })
+  hasDiscount: boolean;
+
+  @ApiProperty({ default: false })
+  @Column({ type: 'boolean', nullable: false, default: false })
+  isFeatured: boolean;
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   FileTypeValidator,
   Get,
@@ -10,6 +11,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -39,6 +41,58 @@ export class ProductController {
     return this.productService.fetchAll();
   }
 
+  @Get('new-arrivals')
+  fetchNewArrivals(
+    @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
+  ) {
+    return this.productService.fetchNewArrivals(limit);
+  }
+
+  @Get('featured')
+  fetchFeaturedProducts(
+    @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
+  ) {
+    return this.productService.fetchFeaturedProducts(limit);
+  }
+
+  // @Get('offers')
+  // fetchOffers(
+  //   @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
+  // ) {
+  //   return this.productService.fetchOfferProducts(limit);
+  // }
+
+  // @Get('just-for-you')
+  // fetchJustForYou(
+  //   @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
+  // ) {
+  //   return this.productService.fetchJustForYou(limit);
+  // }
+
+  // @Get('search')
+  // searchByCategory(
+  //   @Query('categoryId') categoryId?: string,
+  //   @Query('categoryName') categoryName?: string,
+  // ) {
+  //   return this.productService.searchByCategory({
+  //     categoryId: categoryId ? Number(categoryId) : undefined,
+  //     categoryName,
+  //   });
+  // }
+
+  @Get('related/:categoryId')
+  fetchRelatedProducts(
+    @Param('categoryId', ParseIntPipe) categoryId: number,
+    @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
+  ) {
+    return this.productService.fetchRelatedProducts(categoryId, limit);
+  }
+
+  @Get(':id')
+  fetchDetail(@Param('id', ParseIntPipe) id: number) {
+    return this.productService.fetchDetail(id);
+  }
+
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('productImage'))
@@ -50,14 +104,6 @@ export class ProductController {
     @UploadedFile() productImage: Express.Multer.File,
   ) {
     return this.productService.create(productImage, createProductDto);
-  }
-
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @hasRoles(UserRole.Admin)
-  @Get(':id')
-  fetchDetail(@Param('id', ParseIntPipe) id: number) {
-    return this.productService.fetchDetail(id);
   }
 
   @ApiBearerAuth()

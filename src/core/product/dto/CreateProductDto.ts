@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateProductDto {
   @ApiProperty()
@@ -20,6 +26,26 @@ export class CreateProductDto {
   @ApiProperty({ type: 'number' })
   @IsNotEmpty()
   categoryId: number;
+
+  @ApiProperty({ type: 'number', required: false, default: 0 })
+  @IsOptional()
+  @IsNumber()
+  discountPercentage?: number;
+
+  @ApiProperty({ type: 'boolean', required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  hasDiscount?: boolean;
+
+  @ApiProperty({ type: 'boolean', required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  isFeatured?: boolean;
+
+  @ApiProperty({ type: 'boolean', required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  isOffer?: boolean;
 
   @ApiProperty({ type: 'string', format: 'binary' })
   productImage: any;

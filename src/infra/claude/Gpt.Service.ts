@@ -45,7 +45,7 @@ Given a photo of a single product, respond with ONLY a JSON object, no markdown 
 
 Rules:
 - title: short and catchy, under 8 words.
-- description: 2-3 warm, spiritual-toned sentences suitable for a Catholic gift shop product page.
+- description: 2-3 warm, spiritual-toned sentences suitable for a Catholic gift shop product page. The description should be of product to sell it to costumers like in a ecommerce application.
 - category: must be exactly one of: ${ALLOWED_CATEGORIES.join(', ')}.
 - tags: 3-5 short lowercase search keywords.
 - If the image does not clearly show a sellable product, still make a best-effort guess.`;

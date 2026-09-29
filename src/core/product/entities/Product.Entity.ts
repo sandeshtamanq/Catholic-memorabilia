@@ -39,6 +39,10 @@ export class Product {
   categoryId: number;
 
   @ApiProperty()
+  @Column({ type: 'varchar', default: 0 })
+  amount: number;
+
+  @ApiProperty()
   @Column({ type: 'varchar', nullable: false })
   productName: string;
 
@@ -61,6 +65,10 @@ export class Product {
   @ApiProperty({ default: false })
   @Column({ type: 'boolean', nullable: false, default: false })
   hasDiscount: boolean;
+
+  @ApiProperty({ default: false })
+  @Column({ type: 'boolean', nullable: false, default: false })
+  hasOffer: boolean;
 
   @ApiProperty({ default: false })
   @Column({ type: 'boolean', nullable: false, default: false })

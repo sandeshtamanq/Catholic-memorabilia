@@ -33,13 +33,21 @@ export class ProductService {
     } catch (err) {}
   }
 
-  async fetchAll() {
+  async fetchAll(query?: { page?: number; limit?: number; search?: string }) {
     try {
-      const products = await this.productRepository.findAll();
+      const page = query?.page ?? 1;
+      const limit = query?.limit ?? 10;
+      const search = query?.search;
 
-      if (!products) throw new NotFoundException();
+      const result = await this.productRepository.findAll({
+        page,
+        limit,
+        search,
+      });
 
-      return products;
+      if (!result) throw new NotFoundException();
+
+      return result;
     } catch (err) {
       throw new HttpException('Something went wrong', 500);
     }

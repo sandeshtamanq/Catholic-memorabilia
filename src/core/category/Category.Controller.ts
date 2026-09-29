@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -20,6 +21,7 @@ import { CreateCategoryDto } from './dto/CreateCategoryDto';
 import { UpdateCategoryDto } from './dto/UpdateCategoryDto';
 import { RolesGuard } from '../auth/guards/Roles.Guard';
 import { Category } from './entities/Category.Entity';
+import { PaginationQueryDto } from '../../lib/utils/PaginationQueryDto';
 
 @ApiTags('categories')
 @Controller('api/categories')
@@ -29,8 +31,8 @@ export class CategoryController {
 
   @Get()
   @ApiResponse({ type: Category })
-  fetchAll() {
-    return this.categoryService.fetchAll();
+  fetchAll(@Query() query: PaginationQueryDto) {
+    return this.categoryService.fetchAll(query);
   }
 
   @ApiBearerAuth()

@@ -27,25 +27,29 @@ export class CreateProductDto {
   @IsNotEmpty()
   categoryId: number;
 
+  @ApiProperty({ type: 'number' })
+  @IsNotEmpty()
+  quantity: number;
+
   @ApiProperty({ type: 'number', required: false, default: 0 })
   @IsOptional()
-  @IsNumber()
+  // @IsNumber()
   discountPercentage?: number;
 
   @ApiProperty({ type: 'boolean', required: false, default: false })
   @IsOptional()
-  @IsBoolean()
+  // @IsBoolean()
   hasDiscount?: boolean;
 
   @ApiProperty({ type: 'boolean', required: false, default: false })
   @IsOptional()
-  @IsBoolean()
+  // @IsBoolean()
   isFeatured?: boolean;
 
   @ApiProperty({ type: 'boolean', required: false, default: false })
   @IsOptional()
-  @IsBoolean()
-  isOffer?: boolean;
+  // @IsBoolean()
+  hasOffer?: boolean;
 
   @ApiProperty({ type: 'string', format: 'binary' })
   productImage: any;

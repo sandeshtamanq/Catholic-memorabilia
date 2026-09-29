@@ -44,13 +44,31 @@ export class CategoryRepository {
       .getOne();
   }
 
-  async findAll() {
-    return (
-      this.repository
-        .createQueryBuilder('c')
-        //   .leftJoinAndSelect('c.products', 'products')
-        .getMany()
-    );
+  async findAll(opts?: { page?: number; limit?: number; search?: string }) {
+    const page = opts?.page ?? 1;
+    const limit = opts?.limit ?? 10;
+    const search = opts?.search?.trim().toLowerCase();
+
+    const query = this.repository.createQueryBuilder('c');
+
+    if (search) {
+      query.where('LOWER(c.categoryName) LIKE :search', {
+        search: `%${search}%`,
+      });
+    }
+
+    const [items, total] = await query
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async update(category: Partial<Category>) {

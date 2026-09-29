@@ -25,11 +25,37 @@ export class ProductRepository {
     }
   }
 
-  async findAll() {
-    return this.repository
+  async findAll(opts?: { page?: number; limit?: number; search?: string }) {
+    const page = opts?.page ?? 1;
+    const limit = opts?.limit ?? 10;
+    const search = opts?.search?.trim().toLowerCase();
+
+    const query = this.repository
       .createQueryBuilder('p')
-      .leftJoinAndSelect('p.category', 'category')
-      .getMany();
+      .leftJoinAndSelect('p.category', 'category');
+
+    if (search) {
+      query.where(
+        'LOWER(p.productName) LIKE :search OR LOWER(p.productDescription) LIKE :search',
+        {
+          search: `%${search}%`,
+        },
+      );
+    }
+
+    const [items, total] = await query
+      .orderBy('p.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findNewArrivals(limit = 8) {

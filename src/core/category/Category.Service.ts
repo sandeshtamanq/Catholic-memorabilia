@@ -60,13 +60,21 @@ export class CategoryService {
     }
   }
 
-  async fetchAll() {
+  async fetchAll(query?: { page?: number; limit?: number; search?: string }) {
     try {
-      const categories = await this.categoryRepository.findAll();
+      const page = query?.page ?? 1;
+      const limit = query?.limit ?? 10;
+      const search = query?.search;
 
-      if (!categories) throw new NotFoundException();
+      const result = await this.categoryRepository.findAll({
+        page,
+        limit,
+        search,
+      });
 
-      return categories;
+      if (!result) throw new NotFoundException();
+
+      return result;
     } catch (err) {
       throw new HttpException('Something went wrong', 500);
     }

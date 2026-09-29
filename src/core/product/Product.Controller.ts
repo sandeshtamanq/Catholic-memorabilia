@@ -30,6 +30,7 @@ import {
   GeneratedProductDto,
   GenerateProductDto,
 } from './dto/GenerateProductDto';
+import { PaginationQueryDto } from '../../lib/utils/PaginationQueryDto';
 
 @ApiTags('products')
 @Controller('api/products')
@@ -37,8 +38,8 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Get()
-  fetchAll() {
-    return this.productService.fetchAll();
+  fetchAll(@Query() query: PaginationQueryDto) {
+    return this.productService.fetchAll(query);
   }
 
   @Get('new-arrivals')

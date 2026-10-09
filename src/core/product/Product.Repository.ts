@@ -98,6 +98,31 @@ export class ProductRepository {
       .getMany();
   }
 
+  async findSuggestions({
+    keyword,
+  }: {
+    type: 'product' | 'category';
+    keyword: string;
+  }) {
+    const search = keyword.trim().toLowerCase();
+
+    if (!search) {
+      return [];
+    }
+
+    return this.repository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.category', 'category')
+      .where('LOWER(p.productName) LIKE :search', {
+        search: `%${search}%`,
+      })
+      .orWhere('LOWER(p.productDescription) LIKE :search', {
+        search: `%${search}%`,
+      })
+      .orderBy('p.createdAt', 'DESC')
+      .getMany();
+  }
+
   async findCategoryMatches({
     categoryId,
     categoryName,

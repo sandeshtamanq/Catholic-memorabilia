@@ -39,10 +39,6 @@ export class Product {
   categoryId: number;
 
   @ApiProperty()
-  @Column({ type: 'varchar', default: 0 })
-  amount: number;
-
-  @ApiProperty()
   @Column({ type: 'varchar', nullable: false })
   productName: string;
 
@@ -57,6 +53,10 @@ export class Product {
   @ApiProperty()
   @Column({ type: 'varchar', nullable: false })
   productPrice: string;
+
+  @ApiProperty()
+  @Column({ type: 'varchar', default: 0 })
+  quantity: number;
 
   @ApiProperty({ default: 0 })
   @Column({ type: 'float', nullable: false, default: 0 })

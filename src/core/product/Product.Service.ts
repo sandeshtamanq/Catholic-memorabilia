@@ -4,11 +4,13 @@ import { ProductRepository } from './Product.Repository';
 import { CreateProductDto } from './dto/CreateProductDto';
 import { UpdateProductDto } from './dto/UpdateProductDto';
 import { GptService } from '../../infra/claude/Gpt.Service';
+import { CategoryRepository } from '../category/Category.Repository';
 
 @Injectable()
 export class ProductService {
   constructor(
     private readonly productRepository: ProductRepository,
+    private readonly categoryRepository: CategoryRepository,
     private readonly supabaseService: S3StorageService,
     private readonly gptService: GptService,
   ) {}
@@ -67,6 +69,24 @@ export class ProductService {
 
   async fetchJustForYou(limit = 8) {
     return this.productRepository.findJustForYou(limit);
+  }
+
+  async suggest(type?: string, keyword?: string) {
+    const normalizedType = type?.trim().toLowerCase();
+    const normalizedKeyword = keyword?.trim();
+
+    if (normalizedType === 'product') {
+      return this.productRepository.findSuggestions({
+        type: normalizedType,
+        keyword: normalizedKeyword,
+      });
+    }
+
+    if (normalizedType === 'category') {
+      return this.categoryRepository.findSuggestions(normalizedKeyword);
+    }
+
+    return this.productRepository.findAll();
   }
 
   async searchByCategory({

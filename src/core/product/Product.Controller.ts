@@ -81,6 +81,14 @@ export class ProductController {
   //   });
   // }
 
+  @Get('suggest')
+  suggest(
+    @Query('type') type: 'product' | 'category',
+    @Query('keyword') keyword: string,
+  ) {
+    return this.productService.suggest(type, keyword);
+  }
+
   @Get('related/:categoryId')
   fetchRelatedProducts(
     @Param('categoryId', ParseIntPipe) categoryId: number,

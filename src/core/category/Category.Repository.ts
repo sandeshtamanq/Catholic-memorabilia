@@ -44,6 +44,22 @@ export class CategoryRepository {
       .getOne();
   }
 
+  async findSuggestions(keyword: string) {
+    const search = keyword.trim().toLowerCase();
+
+    if (!search) {
+      return [];
+    }
+
+    return this.repository
+      .createQueryBuilder('c')
+      .where('LOWER(c.categoryName) LIKE :search', {
+        search: `%${search}%`,
+      })
+      .orderBy('c.createdAt', 'DESC')
+      .getMany();
+  }
+
   async findAll(opts?: { page?: number; limit?: number; search?: string }) {
     const page = opts?.page ?? 1;
     const limit = opts?.limit ?? 10;

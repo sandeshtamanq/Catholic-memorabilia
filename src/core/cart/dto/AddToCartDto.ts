@@ -13,9 +13,4 @@ export class AddToCartDto {
   @IsInt()
   @Min(1)
   quantity: number;
-
-  @ApiProperty({ example: 'guest@example.com', required: false })
-  @IsOptional()
-  @IsEmail()
-  guestEmail?: string;
 }

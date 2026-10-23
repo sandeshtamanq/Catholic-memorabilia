@@ -25,10 +25,29 @@ export class ProductRepository {
     }
   }
 
-  async findAll(opts?: { page?: number; limit?: number; search?: string }) {
+  async findAll(opts?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }) {
     const page = opts?.page ?? 1;
     const limit = opts?.limit ?? 10;
     const search = opts?.search?.trim().toLowerCase();
+    const minPrice =
+      typeof opts?.minPrice === 'number' && !Number.isNaN(opts.minPrice)
+        ? opts.minPrice
+        : null;
+    const maxPrice =
+      typeof opts?.maxPrice === 'number' && !Number.isNaN(opts.maxPrice)
+        ? opts.maxPrice
+        : null;
+    const sortBy = (opts?.sortBy ?? 'createdAt').toLowerCase();
+    const sortOrder =
+      (opts?.sortOrder ?? 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     const query = this.repository
       .createQueryBuilder('p')
@@ -43,8 +62,29 @@ export class ProductRepository {
       );
     }
 
+    if (minPrice !== null) {
+      query.andWhere('CAST(p.productPrice AS DECIMAL) >= :minPrice', {
+        minPrice,
+      });
+    }
+
+    if (maxPrice !== null) {
+      query.andWhere('CAST(p.productPrice AS DECIMAL) <= :maxPrice', {
+        maxPrice,
+      });
+    }
+
+    const sortColumnMap: Record<string, string> = {
+      alphabet: 'p.productName',
+      name: 'p.productName',
+      price: 'CAST(p.productPrice AS DECIMAL)',
+      createdat: 'p.createdAt',
+    };
+
+    const orderColumn = sortColumnMap[sortBy] ?? 'p.createdAt';
+
     const [items, total] = await query
-      .orderBy('p.createdAt', 'DESC')
+      .orderBy(orderColumn, sortOrder)
       .skip((page - 1) * limit)
       .take(limit)
       .getManyAndCount();

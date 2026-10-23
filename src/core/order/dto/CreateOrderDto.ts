@@ -7,6 +7,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -50,7 +51,33 @@ export class CreateOrderDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  deliveryAddress?: string;
+  addressLine1?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  addressLine2?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  suburb?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^(ACT|NSW|NT|QLD|SA|TAS|VIC|WA)$/, {
+    message: 'Please enter a valid Australian state.',
+  })
+  state?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}$/, {
+    message: 'Please enter a valid 4-digit postcode.',
+  })
+  postcode?: string;
 
   @ApiProperty({ type: [CreateOrderItemDto] })
   @IsArray()

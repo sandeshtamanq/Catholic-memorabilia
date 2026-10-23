@@ -18,18 +18,10 @@ export class CartService {
     return guestEmail?.trim().toLowerCase() || null;
   }
 
-  private async resolveUserId(
-    userId: number | null,
-    guestEmail?: string | null,
-  ): Promise<number | null> {
-    if (typeof userId === 'number' && Number.isFinite(userId)) {
-      return userId;
-    }
-
-    const normalizedEmail = this.normalizeGuestEmail(guestEmail);
-    if (!normalizedEmail) {
-      return null;
-    }
+  private async ensureGuestUser(guestEmail?: string | null) {
+    const normalizedEmail =
+      this.normalizeGuestEmail(guestEmail) ??
+      `guest-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@guest.local`;
 
     let guestUser = await this.cartRepository.findUserByEmail(normalizedEmail);
 
@@ -51,6 +43,18 @@ export class CartService {
       });
     }
 
+    return guestUser;
+  }
+
+  private async resolveUserId(
+    userId: number | null,
+    guestEmail?: string | null,
+  ): Promise<number | null> {
+    if (typeof userId === 'number' && Number.isFinite(userId)) {
+      return userId;
+    }
+
+    const guestUser = await this.ensureGuestUser(guestEmail);
     return guestUser.id;
   }
 
@@ -79,13 +83,10 @@ export class CartService {
     guestEmail?: string | null,
   ) {
     try {
-      const resolvedUserId = await this.resolveUserId(
-        userId,
-        guestEmail ?? addToCartDto.guestEmail,
-      );
+      const resolvedUserId = await this.resolveUserId(userId, guestEmail);
       if (!resolvedUserId) {
         throw new BadRequestException(
-          'A guest email is required to add items without a logged-in user',
+          'Unable to resolve a cart owner for this guest session',
         );
       }
 
@@ -154,7 +155,7 @@ export class CartService {
       );
       if (!resolvedUserId) {
         throw new BadRequestException(
-          'A guest email is required to update items without a logged-in user',
+          'Unable to resolve a cart owner for this guest session',
         );
       }
 
@@ -196,7 +197,7 @@ export class CartService {
       const resolvedUserId = await this.resolveUserId(userId, guestEmail);
       if (!resolvedUserId) {
         throw new BadRequestException(
-          'A guest email is required to remove items without a logged-in user',
+          'Unable to resolve a cart owner for this guest session',
         );
       }
 
@@ -228,7 +229,7 @@ export class CartService {
       const resolvedUserId = await this.resolveUserId(userId, guestEmail);
       if (!resolvedUserId) {
         throw new BadRequestException(
-          'A guest email is required to clear items without a logged-in user',
+          'Unable to resolve a cart owner for this guest session',
         );
       }
 

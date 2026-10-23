@@ -13,6 +13,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserRole } from './UserRole.Enum';
+import { UserType } from './UserType.Enum';
 import { Cart } from '../../cart/entities/Cart.Entity';
 @Entity({ name: 'users' })
 @Unique(['email'])
@@ -68,6 +69,10 @@ export class User extends BaseEntity {
   @ApiProperty()
   @Column({ type: 'varchar', default: UserRole.User })
   role: UserRole;
+
+  @ApiProperty()
+  @Column({ type: 'varchar', default: UserType.Regular })
+  userType: UserType;
 
   @ApiProperty()
   @Column({ type: 'boolean', default: false })

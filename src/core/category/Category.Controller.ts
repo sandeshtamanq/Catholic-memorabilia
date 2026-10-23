@@ -9,10 +9,18 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
+import 'multer';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { hasRoles } from '../../lib/decorators/Roles.Decorator';
 import { JwtAuthGuard } from '../auth/guards/JwtAuth.Guard';
 import { UserRole } from '../user/entities/UserRole.Enum';
@@ -36,22 +44,33 @@ export class CategoryController {
   }
 
   @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
   @hasRoles(UserRole.Admin)
+  @UseInterceptors(FileInterceptor('categoryImage'))
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Post()
-  create(@Body() createCategoryDto: CreateCategoryDto) {
-    return this.categoryService.create(createCategoryDto);
+  create(
+    @Body() createCategoryDto: CreateCategoryDto,
+    @UploadedFile() categoryImage: Express.Multer.File,
+  ) {
+    return this.categoryService.create(categoryImage, createCategoryDto);
   }
 
   @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
   @hasRoles(UserRole.Admin)
+  @UseInterceptors(FileInterceptor('categoryImage'))
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCategoryDto: UpdateCategoryDto,
+    @UploadedFile() categoryImage: Express.Multer.File,
   ) {
-    return this.categoryService.update(id, updateCategoryDto);
+    return this.categoryService.update(id, {
+      categoryImage,
+      ...updateCategoryDto,
+    });
   }
 
   @Get(':id')

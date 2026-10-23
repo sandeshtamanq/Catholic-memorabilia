@@ -1,4 +1,11 @@
-import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
+import { UserType } from '../user/entities/UserType.Enum';
 import { AddToCartDto } from './dto/AddToCartDto';
 import { UpdateCartItemDto } from './dto/UpdateCartItemDto';
 import { CartRepository } from './Cart.Repository';
@@ -7,12 +14,57 @@ import { CartRepository } from './Cart.Repository';
 export class CartService {
   constructor(private readonly cartRepository: CartRepository) {}
 
-  async getCart(userId: number) {
+  private normalizeGuestEmail(guestEmail?: string | null) {
+    return guestEmail?.trim().toLowerCase() || null;
+  }
+
+  private async resolveUserId(
+    userId: number | null,
+    guestEmail?: string | null,
+  ): Promise<number | null> {
+    if (typeof userId === 'number' && Number.isFinite(userId)) {
+      return userId;
+    }
+
+    const normalizedEmail = this.normalizeGuestEmail(guestEmail);
+    if (!normalizedEmail) {
+      return null;
+    }
+
+    let guestUser = await this.cartRepository.findUserByEmail(normalizedEmail);
+
+    if (!guestUser) {
+      guestUser = await this.cartRepository.createGuestUser({
+        firstName: 'Guest',
+        lastName: 'Customer',
+        email: normalizedEmail,
+        contactNumber: '0000000000',
+        password: await bcrypt.hash(
+          `guest-${Date.now()}-${normalizedEmail}`,
+          12,
+        ),
+        addressLine1: '',
+        suburb: '',
+        state: '',
+        postcode: '',
+        userType: UserType.Guest,
+      });
+    }
+
+    return guestUser.id;
+  }
+
+  async getCart(userId: number | null, guestEmail?: string | null) {
     try {
-      let cart = await this.cartRepository.findCartByUserId(userId);
+      const resolvedUserId = await this.resolveUserId(userId, guestEmail);
+      if (!resolvedUserId) {
+        return null;
+      }
+
+      let cart = await this.cartRepository.findCartByUserId(resolvedUserId);
 
       if (!cart) {
-        cart = await this.cartRepository.createCart(userId);
+        cart = await this.cartRepository.createCart(resolvedUserId);
       }
 
       return cart;
@@ -21,8 +73,22 @@ export class CartService {
     }
   }
 
-  async addItem(userId: number, addToCartDto: AddToCartDto) {
+  async addItem(
+    userId: number | null,
+    addToCartDto: AddToCartDto,
+    guestEmail?: string | null,
+  ) {
     try {
+      const resolvedUserId = await this.resolveUserId(
+        userId,
+        guestEmail ?? addToCartDto.guestEmail,
+      );
+      if (!resolvedUserId) {
+        throw new BadRequestException(
+          'A guest email is required to add items without a logged-in user',
+        );
+      }
+
       const product = await this.cartRepository.getProductById(
         addToCartDto.productId,
       );
@@ -31,10 +97,10 @@ export class CartService {
         throw new NotFoundException('Product not found');
       }
 
-      let cart = await this.cartRepository.findCartByUserId(userId);
+      let cart = await this.cartRepository.findCartByUserId(resolvedUserId);
 
       if (!cart) {
-        cart = await this.cartRepository.createCart(userId);
+        cart = await this.cartRepository.createCart(resolvedUserId);
       }
 
       const existingItem = await this.cartRepository.findCartItemByProduct(
@@ -42,7 +108,6 @@ export class CartService {
         addToCartDto.productId,
       );
 
-      // Changing the type from string to integer
       const unitPrice = Number(product.productPrice);
 
       if (existingItem) {
@@ -66,7 +131,10 @@ export class CartService {
 
       return this.cartRepository.updateCartTotals(cart.id);
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new HttpException('Something went wrong', 500);
@@ -74,12 +142,23 @@ export class CartService {
   }
 
   async updateItemQuantity(
-    userId: number,
+    userId: number | null,
     productId: number,
     updateCartItemDto: UpdateCartItemDto,
+    guestEmail?: string | null,
   ) {
     try {
-      const cart = (await this.getCart(userId)) as any;
+      const resolvedUserId = await this.resolveUserId(
+        userId,
+        guestEmail ?? updateCartItemDto.guestEmail,
+      );
+      if (!resolvedUserId) {
+        throw new BadRequestException(
+          'A guest email is required to update items without a logged-in user',
+        );
+      }
+
+      const cart = (await this.getCart(resolvedUserId)) as any;
       const existingItem = await this.cartRepository.findCartItemByProduct(
         cart.id,
         productId,
@@ -98,16 +177,30 @@ export class CartService {
       await this.cartRepository.saveCartItem(existingItem);
       return this.cartRepository.updateCartTotals(cart.id);
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new HttpException('Something went wrong', 500);
     }
   }
 
-  async removeItem(userId: number, productId: number) {
+  async removeItem(
+    userId: number | null,
+    productId: number,
+    guestEmail?: string | null,
+  ) {
     try {
-      const cart = (await this.getCart(userId)) as any;
+      const resolvedUserId = await this.resolveUserId(userId, guestEmail);
+      if (!resolvedUserId) {
+        throw new BadRequestException(
+          'A guest email is required to remove items without a logged-in user',
+        );
+      }
+
+      const cart = (await this.getCart(resolvedUserId)) as any;
       const existingItem = await this.cartRepository.findCartItemByProduct(
         cart.id,
         productId,
@@ -120,19 +213,32 @@ export class CartService {
       await this.cartRepository.deleteCartItem(cart.id, productId);
       return this.cartRepository.updateCartTotals(cart.id);
     } catch (error) {
-      if (error instanceof NotFoundException) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new HttpException('Something went wrong', 500);
     }
   }
 
-  async clearCart(userId: number) {
+  async clearCart(userId: number | null, guestEmail?: string | null) {
     try {
-      const cart = (await this.getCart(userId)) as any;
+      const resolvedUserId = await this.resolveUserId(userId, guestEmail);
+      if (!resolvedUserId) {
+        throw new BadRequestException(
+          'A guest email is required to clear items without a logged-in user',
+        );
+      }
+
+      const cart = (await this.getCart(resolvedUserId)) as any;
       await this.cartRepository.clearCartItems(cart.id);
       return this.cartRepository.updateCartTotals(cart.id);
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       throw new HttpException('Something went wrong', 500);
     }
   }

@@ -4,8 +4,16 @@ import { AuthModule } from './auth/Auth.Module';
 import { CategoryModule } from './category/Category.Module';
 import { ProductModule } from './product/Product.Module';
 import { CartModule } from './cart/Cart.Module';
+import { OrderModule } from './order/Order.Module';
 
 @Module({
-  imports: [AuthModule, UserModule, CategoryModule, ProductModule, CartModule],
+  imports: [
+    AuthModule,
+    UserModule,
+    CategoryModule,
+    ProductModule,
+    CartModule,
+    OrderModule,
+  ],
 })
 export class CoreModule {}

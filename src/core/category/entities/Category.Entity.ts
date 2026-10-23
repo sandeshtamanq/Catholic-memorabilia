@@ -39,6 +39,14 @@ export class Category {
   @Column({ type: 'varchar', nullable: false })
   categoryName: string;
 
+  @ApiProperty({ required: false })
+  @Column({ type: 'text', nullable: true })
+  categoryDescription?: string;
+
+  @ApiProperty({ required: false })
+  @Column({ type: 'varchar', nullable: true })
+  categoryImageUrl?: string;
+
   @BeforeInsert()
   capitalizeName(): void {
     this.categoryName =

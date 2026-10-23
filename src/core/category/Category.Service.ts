@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { S3StorageService } from '../../infra/supabase/Supabase.Service';
 import { CategoryRepository } from './Category.Repository';
 import { CreateCategoryDto } from './dto/CreateCategoryDto';
 import { UpdateCategoryDto } from './dto/UpdateCategoryDto';
@@ -15,8 +16,13 @@ export class CategoryService {
   constructor(
     private readonly categoryRepository: CategoryRepository,
     private readonly productService: ProductService,
+    private readonly supabaseService: S3StorageService,
   ) {}
-  async create(createCategoryDto: CreateCategoryDto) {
+
+  async create(
+    file: Express.Multer.File,
+    createCategoryDto: CreateCategoryDto,
+  ) {
     try {
       const doesCategoryExist = await this.categoryRepository.findOneBy({
         categoryName: createCategoryDto.categoryName,
@@ -27,7 +33,23 @@ export class CategoryService {
           `${createCategoryDto.categoryName} category already exists`,
         );
 
-      const category = await this.categoryRepository.create(createCategoryDto);
+      const description = createCategoryDto.categoryDescription ?? '';
+
+      const payload: any = {
+        ...createCategoryDto,
+        categoryDescription: description,
+      };
+
+      if (file) {
+        const path = `categories/${Date.now()}-${file.originalname}`;
+        payload.categoryImageUrl = await this.supabaseService.uploadFile(
+          'proj',
+          path,
+          file,
+        );
+      }
+
+      const category = await this.categoryRepository.create(payload);
 
       if (!category) throw new NotFoundException();
 
@@ -80,14 +102,36 @@ export class CategoryService {
     }
   }
 
-  async update(id: number, updateCategoryDto: UpdateCategoryDto) {
+  async update(
+    id: number,
+    updateCategoryDto: UpdateCategoryDto & {
+      categoryImage?: Express.Multer.File;
+    },
+  ) {
     try {
       const category = await this.categoryRepository.findOne(id);
       if (!category) throw new NotFoundException();
 
+      if (updateCategoryDto.categoryImage) {
+        const path = `categories/${Date.now()}-${updateCategoryDto.categoryImage.originalname}`;
+        category.categoryImageUrl = await this.supabaseService.uploadFile(
+          'proj',
+          path,
+          updateCategoryDto.categoryImage,
+        );
+      }
+
+      const description = updateCategoryDto.categoryDescription;
+
+      if (description !== undefined) {
+        category.categoryDescription = description;
+      }
+
+      const { categoryImage, ...restCategory } = updateCategoryDto;
+
       const updateCategory = await this.categoryRepository.update({
         ...category,
-        ...updateCategoryDto,
+        ...restCategory,
       });
       if (!updateCategory) throw new NotFoundException();
       return updateCategory;

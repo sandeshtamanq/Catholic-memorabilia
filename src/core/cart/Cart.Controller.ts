@@ -47,7 +47,7 @@ export class CartController {
     return this.cartService.addItem(
       userId,
       addToCartDto,
-      this.getGuestEmailFromRequest(req) ?? addToCartDto.guestEmail,
+      this.getGuestEmailFromRequest(req),
     );
   }
 

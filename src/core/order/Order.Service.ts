@@ -28,6 +28,35 @@ export class OrderService {
     };
   }
 
+  private formatDeliveryAddress(data: {
+    addressLine1?: string;
+    addressLine2?: string;
+    suburb?: string;
+    state?: string;
+    postcode?: string;
+    fallback?: string;
+  }) {
+    const addressLine1 = data.addressLine1?.trim();
+    const addressLine2 = data.addressLine2?.trim();
+    const suburb = data.suburb?.trim();
+    const state = data.state?.trim();
+    const postcode = data.postcode?.trim();
+    const fallback = data.fallback?.trim();
+
+    const parts = [
+      addressLine1,
+      addressLine2,
+      suburb,
+      state && postcode ? `${state} ${postcode}` : state || postcode,
+    ].filter(Boolean);
+
+    if (parts.length > 0) {
+      return parts.join(', ');
+    }
+
+    return fallback || '';
+  }
+
   async createOrder(
     userIdOrDto: number | null | CreateOrderDto,
     maybeDto?: CreateOrderDto,
@@ -46,6 +75,14 @@ export class OrderService {
         (typeof userId === 'number' ? userId : null) ??
         createOrderDto.userId ??
         null;
+
+      const deliveryAddress = this.formatDeliveryAddress({
+        addressLine1: createOrderDto.addressLine1,
+        addressLine2: createOrderDto.addressLine2,
+        suburb: createOrderDto.suburb,
+        state: createOrderDto.state,
+        postcode: createOrderDto.postcode,
+      });
 
       if (!effectiveUserId) {
         if (
@@ -75,10 +112,11 @@ export class OrderService {
               `guest-${Date.now()}-${guestEmail}`,
               12,
             ),
-            addressLine1: createOrderDto.deliveryAddress ?? '',
-            suburb: '',
-            state: '',
-            postcode: '',
+            addressLine1: createOrderDto.addressLine1 ?? '',
+            addressLine2: createOrderDto.addressLine2 ?? undefined,
+            suburb: createOrderDto.suburb ?? '',
+            state: createOrderDto.state ?? '',
+            postcode: createOrderDto.postcode ?? '',
             userType: UserType.Guest,
           });
         }
@@ -140,7 +178,7 @@ export class OrderService {
         guestName: createOrderDto.guestName ?? null,
         guestEmail: createOrderDto.guestEmail ?? null,
         guestPhone: createOrderDto.guestPhone ?? null,
-        deliveryAddress: createOrderDto.deliveryAddress ?? null,
+        deliveryAddress: deliveryAddress || null,
         orderStatus: 'PENDING',
         totalItems,
         totalAmount: Number(totalAmount.toFixed(2)),

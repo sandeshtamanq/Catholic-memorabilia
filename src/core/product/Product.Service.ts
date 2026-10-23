@@ -6,6 +6,16 @@ import { UpdateProductDto } from './dto/UpdateProductDto';
 import { GptService } from '../../infra/claude/Gpt.Service';
 import { CategoryRepository } from '../category/Category.Repository';
 
+export type ProductListQuery = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: 'alphabet' | 'name' | 'price';
+  sortOrder?: 'asc' | 'desc';
+};
+
 @Injectable()
 export class ProductService {
   constructor(
@@ -35,16 +45,24 @@ export class ProductService {
     } catch (err) {}
   }
 
-  async fetchAll(query?: { page?: number; limit?: number; search?: string }) {
+  async fetchAll(query?: ProductListQuery) {
     try {
       const page = query?.page ?? 1;
       const limit = query?.limit ?? 10;
       const search = query?.search;
+      const minPrice = query?.minPrice;
+      const maxPrice = query?.maxPrice;
+      const sortBy = query?.sortBy;
+      const sortOrder = query?.sortOrder;
 
       const result = await this.productRepository.findAll({
         page,
         limit,
         search,
+        minPrice,
+        maxPrice,
+        sortBy,
+        sortOrder,
       });
 
       if (!result) throw new NotFoundException();

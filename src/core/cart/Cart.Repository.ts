@@ -2,6 +2,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from '../product/entities/Product.Entity';
+import { User } from '../user/entities/User.Entity';
+import { UserRole } from '../user/entities/UserRole.Enum';
+import { UserType } from '../user/entities/UserType.Enum';
 import { Cart } from './entities/Cart.Entity';
 import { CartItem } from './entities/CartItem.Entity';
 
@@ -13,10 +16,27 @@ export class CartRepository {
     private readonly cartItemRepository: Repository<CartItem>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   async getProductById(productId: number) {
     return this.productRepository.findOne({ where: { id: productId } });
+  }
+
+  async findUserByEmail(email: string) {
+    return this.userRepository.findOne({ where: { email } });
+  }
+
+  async createGuestUser(userData: Partial<User>) {
+    const guestUser = this.userRepository.create({
+      ...userData,
+      role: UserRole.User,
+      userType: userData.userType ?? UserType.Guest,
+      isEmailVerified: false,
+    });
+
+    return this.userRepository.save(guestUser);
   }
 
   async findCartByUserId(userId: number) {

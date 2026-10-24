@@ -1,6 +1,8 @@
 import { CanActivate, Injectable } from '@nestjs/common';
 import { ExecutionContext } from '@nestjs/common/interfaces';
 import { Reflector } from '@nestjs/core';
+import { UserRole } from '../../user/entities/UserRole.Enum';
+
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
@@ -15,12 +17,20 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const { user } = ctx.switchToHttp().getRequest();
+    const request = ctx.switchToHttp().getRequest();
+    const { user } = request;
 
-    let hasAccess: boolean;
+    if (!user || !user.role) {
+      return false;
+    }
 
-    hasAccess = requiredRoles.indexOf(user.role) > -1;
+    if (user.role === UserRole.Staff) {
+      const writeMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+      if (writeMethods.includes(request.method?.toUpperCase())) {
+        return false;
+      }
+    }
 
-    return hasAccess;
+    return requiredRoles.indexOf(user.role) > -1;
   }
 }

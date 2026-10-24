@@ -5,14 +5,21 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserType } from '../user/entities/UserType.Enum';
 import { CreateOrderDto } from './dto/CreateOrderDto';
 import { OrderRepository } from './Order.Repository';
+import { UserActivity } from '../activity/entities/UserActivity.Entity';
 
 @Injectable()
 export class OrderService {
-  constructor(private readonly orderRepository: OrderRepository) {}
+  constructor(
+    private readonly orderRepository: OrderRepository,
+    @InjectRepository(UserActivity)
+    private readonly userActivityRepository: Repository<UserActivity>,
+  ) {}
 
   private splitGuestName(fullName?: string) {
     const trimmedName = fullName?.trim() || 'Guest Customer';
@@ -190,6 +197,21 @@ export class OrderService {
           orderId: order.id,
         })),
       );
+
+      await this.userActivityRepository.save({
+        moduleName: 'order',
+        action: 'BUY_PRODUCT',
+        userId: effectiveUserId,
+        productId: orderItems[0]?.productId ?? null,
+        description: `User placed order #${order.id}`,
+        metadata: {
+          orderId: order.id,
+          itemCount: orderItems.length,
+          totalItems,
+          totalAmount: Number(totalAmount.toFixed(2)),
+          productIds: orderItems.map((item) => item.productId),
+        },
+      });
 
       const savedOrder =
         typeof this.orderRepository.findOneById === 'function'

@@ -70,6 +70,10 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', default: UserRole.User })
   role: UserRole;
 
+  @ApiProperty({ nullable: true, type: 'date' })
+  @Column({ type: 'timestamp', nullable: true })
+  lastLoginAt?: Date | null;
+
   @ApiProperty()
   @Column({ type: 'varchar', default: UserType.Regular })
   userType: UserType;

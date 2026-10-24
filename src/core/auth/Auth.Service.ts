@@ -44,6 +44,8 @@ export class AuthService {
   }
 
   async login(user: User) {
+    const updatedUser = await this.userService.markLastLogin(user.id);
+
     const payload = {
       id: user.id,
       firstName: user.firstName,
@@ -52,7 +54,7 @@ export class AuthService {
       role: user.role,
     };
     const token = await this.generateJwt(payload);
-    return { user, token };
+    return { user: updatedUser ?? user, token };
   }
 
   async signUp(signUpDto: SignUpDto) {

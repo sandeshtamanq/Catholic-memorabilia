@@ -1,11 +1,28 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
+  IsArray,
   IsBoolean,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
 } from 'class-validator';
+
+const normalizeStringArray = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
 
 export class CreateProductDto {
   @ApiProperty()
@@ -17,6 +34,28 @@ export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
   productDescription: string;
+
+  @ApiProperty({
+    type: [String],
+    required: false,
+    example: ['Small', 'Medium', 'Large'],
+  })
+  @IsOptional()
+  @IsArray()
+  @Transform(({ value }) => normalizeStringArray(value))
+  @IsString({ each: true })
+  sizes?: string[];
+
+  @ApiProperty({
+    type: [String],
+    required: false,
+    example: ['Black', 'White', 'Red'],
+  })
+  @IsOptional()
+  @IsArray()
+  @Transform(({ value }) => normalizeStringArray(value))
+  @IsString({ each: true })
+  colors?: string[];
 
   @ApiProperty()
   @IsString()

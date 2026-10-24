@@ -34,6 +34,14 @@ export class UserRepository {
     return query.getMany();
   }
 
+  async findAll() {
+    return this.repository
+      .createQueryBuilder('u')
+      .orderBy('u.lastLoginAt', 'DESC', 'NULLS LAST')
+      .addOrderBy('u.createdAt', 'DESC')
+      .getMany();
+  }
+
   async findOne(id: number) {
     return this.repository
       .createQueryBuilder('u')

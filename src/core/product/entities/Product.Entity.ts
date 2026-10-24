@@ -50,6 +50,22 @@ export class Product {
   @Column({ type: 'varchar', nullable: false })
   productImageUrl: string;
 
+  @ApiProperty({
+    type: [String],
+    required: false,
+    example: ['Small', 'Medium', 'Large'],
+  })
+  @Column({ type: 'simple-array', nullable: true })
+  sizes?: string[];
+
+  @ApiProperty({
+    type: [String],
+    required: false,
+    example: ['Black', 'White', 'Red'],
+  })
+  @Column({ type: 'simple-array', nullable: true })
+  colors?: string[];
+
   @ApiProperty()
   @Column({ type: 'varchar', nullable: false })
   productPrice: string;

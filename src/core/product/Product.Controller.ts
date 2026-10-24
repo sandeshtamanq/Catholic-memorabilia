@@ -20,6 +20,7 @@ import 'multer';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { hasRoles } from '../../lib/decorators/Roles.Decorator';
+import { CurrentUser } from '../../lib/decorators/CurrentUser.Decorator';
 import { JwtAuthGuard } from '../auth/guards/JwtAuth.Guard';
 import { RolesGuard } from '../auth/guards/Roles.Guard';
 import { UserRole } from '../user/entities/UserRole.Enum';
@@ -95,6 +96,23 @@ export class ProductController {
     @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
   ) {
     return this.productService.fetchRelatedProducts(categoryId, limit);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get('favorites')
+  getFavorites(@CurrentUser() userId: number) {
+    return this.productService.getFavorites(userId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/favorite')
+  toggleFavorite(
+    @CurrentUser() userId: number,
+    @Param('id', ParseIntPipe) productId: number,
+  ) {
+    return this.productService.toggleFavorite(userId, productId);
   }
 
   @Get(':id')

@@ -1,10 +1,18 @@
-import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Repository } from 'typeorm';
 import { S3StorageService } from '../../infra/supabase/Supabase.Service';
 import { ProductRepository } from './Product.Repository';
 import { CreateProductDto } from './dto/CreateProductDto';
 import { UpdateProductDto } from './dto/UpdateProductDto';
 import { GptService } from '../../infra/claude/Gpt.Service';
 import { CategoryRepository } from '../category/Category.Repository';
+import { ProductFavorite } from './entities/ProductFavorite.Entity';
 
 export type ProductListQuery = {
   page?: number;
@@ -23,6 +31,8 @@ export class ProductService {
     private readonly categoryRepository: CategoryRepository,
     private readonly supabaseService: S3StorageService,
     private readonly gptService: GptService,
+    @Inject('PRODUCT_FAVORITE_REPOSITORY')
+    private readonly favoriteRepository: Repository<ProductFavorite>,
   ) {}
 
   async create(file: Express.Multer.File, createProductDto: CreateProductDto) {
@@ -173,6 +183,53 @@ export class ProductService {
         throw new HttpException('Could not update the service', 400);
       throw new HttpException('Something went wrong', 500);
     }
+  }
+
+  async toggleFavorite(userId: number, productId: number) {
+    if (!userId || !productId) {
+      throw new BadRequestException('User and product are required');
+    }
+
+    const product = await this.productRepository.findOne(productId);
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const existingFavorite = await this.favoriteRepository.findOne({
+      where: { userId, productId },
+    });
+
+    if (existingFavorite) {
+      await this.favoriteRepository.remove(existingFavorite);
+      return {
+        favorited: false,
+        favorite: existingFavorite,
+      };
+    }
+
+    const favorite = await this.favoriteRepository.save({
+      userId,
+      productId,
+    });
+
+    return {
+      favorited: true,
+      favorite,
+    };
+  }
+
+  async getFavorites(userId: number) {
+    if (!userId) {
+      throw new BadRequestException('User is required');
+    }
+
+    const favorites = await this.favoriteRepository.find({
+      where: { userId },
+      relations: ['product', 'product.category'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return favorites.map((favorite) => favorite.product);
   }
 
   async delete(id: number) {

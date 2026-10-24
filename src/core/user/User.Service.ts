@@ -10,6 +10,7 @@ import { UserTypeParamDto } from '../../lib/utils/UserTypeParamDto';
 import { UserRepository } from './User.Repository';
 import { CreateUserDto } from './dto/CreateUserDto';
 import { UpdateUserDto } from './dto/UpdateUserDto';
+import { UserRole } from './entities/UserRole.Enum';
 
 @Injectable()
 export class UserService {
@@ -22,6 +23,15 @@ export class UserService {
     try {
       const users = await this.userRepository.find(userType);
       if (!users) throw new NotFoundException();
+      return users;
+    } catch (err) {
+      throw new HttpException('Something went wrong', 500);
+    }
+  }
+
+  async getAllUsers() {
+    try {
+      const users = await this.userRepository.findAll();
       return users;
     } catch (err) {
       throw new HttpException('Something went wrong', 500);
@@ -63,7 +73,7 @@ export class UserService {
     }
   }
 
-  async createUser(createUserDto: CreateUserDto) {
+  async createUser(createUserDto: CreateUserDto & { role?: UserRole }) {
     try {
       const userExists = await this.userRepository.findOneBy({
         email: createUserDto.email,
@@ -72,12 +82,36 @@ export class UserService {
       if (userExists) {
         throw new BadRequestException('User already exists!');
       }
-      const user = await this.userRepository.create(createUserDto);
+
+      const normalizedRole =
+        createUserDto.role === UserRole.Staff ? UserRole.Staff : UserRole.User;
+
+      const user = await this.userRepository.create({
+        ...createUserDto,
+        role: normalizedRole,
+        isEmailVerified: true,
+      });
       return user;
     } catch (err) {
-      err;
+      if (err instanceof BadRequestException) {
+        throw err;
+      }
       throw new BadRequestException();
     }
+  }
+
+  async markLastLogin(userId: number) {
+    const user = await this.userRepository.findOne(userId);
+    if (!user) {
+      return null;
+    }
+
+    const updatedUser = await this.userRepository.update({
+      ...user,
+      lastLoginAt: new Date(),
+    });
+
+    return updatedUser;
   }
 
   async findOneBy(by: { email: string }) {

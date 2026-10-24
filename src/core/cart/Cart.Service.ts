@@ -4,15 +4,22 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserType } from '../user/entities/UserType.Enum';
 import { AddToCartDto } from './dto/AddToCartDto';
 import { UpdateCartItemDto } from './dto/UpdateCartItemDto';
 import { CartRepository } from './Cart.Repository';
+import { UserActivity } from '../activity/entities/UserActivity.Entity';
 
 @Injectable()
 export class CartService {
-  constructor(private readonly cartRepository: CartRepository) {}
+  constructor(
+    private readonly cartRepository: CartRepository,
+    @InjectRepository(UserActivity)
+    private readonly userActivityRepository: Repository<UserActivity>,
+  ) {}
 
   private normalizeGuestEmail(guestEmail?: string | null) {
     return guestEmail?.trim().toLowerCase() || null;
@@ -119,15 +126,27 @@ export class CartService {
         );
 
         await this.cartRepository.saveCartItem(existingItem);
-        return this.cartRepository.updateCartTotals(cart.id);
+      } else {
+        await this.cartRepository.saveCartItem({
+          cartId: cart.id,
+          productId: product.id,
+          quantity: addToCartDto.quantity,
+          unitPrice,
+          totalPrice: Number((addToCartDto.quantity * unitPrice).toFixed(2)),
+        });
       }
 
-      await this.cartRepository.saveCartItem({
-        cartId: cart.id,
+      await this.userActivityRepository.save({
+        moduleName: 'cart',
+        action: 'ADD_TO_CART',
+        userId: resolvedUserId,
         productId: product.id,
-        quantity: addToCartDto.quantity,
-        unitPrice,
-        totalPrice: Number((addToCartDto.quantity * unitPrice).toFixed(2)),
+        description: `User added ${product.productName} to cart`,
+        metadata: {
+          quantity: addToCartDto.quantity,
+          unitPrice,
+          productName: product.productName,
+        },
       });
 
       return this.cartRepository.updateCartTotals(cart.id);

@@ -49,14 +49,78 @@ export class CartRepository {
       .getOne();
   }
 
-  async createCart(userId: number) {
+  async findCartByGuestToken(guestToken: string) {
+    return this.cartRepository
+      .createQueryBuilder('cart')
+      .leftJoinAndSelect('cart.items', 'items')
+      .leftJoinAndSelect('items.product', 'product')
+      .where('cart.guestToken = :guestToken', { guestToken })
+      .orderBy('items.id', 'ASC')
+      .getOne();
+  }
+
+  async createCart(userId: number, guestToken?: string | null) {
     const cart = this.cartRepository.create({
       userId,
+      guestToken: guestToken ?? null,
       totalItems: 0,
       totalAmount: 0,
     });
 
     return this.cartRepository.save(cart);
+  }
+
+  async createCartForGuest(guestToken: string) {
+    return this.createCart(null as any, guestToken);
+  }
+
+  async mergeGuestCartIntoUser(guestToken: string, userId: number) {
+    const guestCart = await this.findCartByGuestToken(guestToken);
+    if (!guestCart) {
+      return null;
+    }
+
+    let userCart = await this.findCartByUserId(userId);
+    if (!userCart) {
+      userCart = await this.createCart(userId);
+    }
+
+    for (const item of guestCart.items ?? []) {
+      const existingItem = await this.findCartItemByProduct(
+        userCart.id,
+        item.productId,
+      );
+
+      if (existingItem) {
+        existingItem.quantity += item.quantity;
+        existingItem.unitPrice = Number(
+          item.unitPrice || existingItem.unitPrice,
+        );
+        existingItem.totalPrice = Number(
+          (existingItem.quantity * Number(existingItem.unitPrice || 0)).toFixed(
+            2,
+          ),
+        );
+        await this.saveCartItem(existingItem);
+      } else {
+        await this.saveCartItem({
+          cartId: userCart.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice || 0),
+          totalPrice: Number(
+            (item.quantity * Number(item.unitPrice || 0)).toFixed(2),
+          ),
+        });
+      }
+    }
+
+    guestCart.userId = userId;
+    guestCart.guestToken = null;
+    await this.cartRepository.save(guestCart);
+    await this.cartRepository.delete({ id: guestCart.id });
+
+    return this.updateCartTotals(userCart.id);
   }
 
   async findCartItemByProduct(cartId: number, productId: number) {

@@ -9,8 +9,11 @@ import {
   Post,
   Query,
   Req,
+  Res,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
+import { randomUUID } from 'crypto';
 import { Public } from '../../lib/decorators/Public.Decorator';
 import { CurrentUser } from '../../lib/decorators/CurrentUser.Decorator';
 import { AddToCartDto } from './dto/AddToCartDto';
@@ -31,10 +34,46 @@ export class CartController {
     );
   }
 
+  private getCartTokenFromRequest(req: any): string | null {
+    return (
+      req?.cookies?.cart_token ??
+      req?.cookies?.cartToken ??
+      req?.query?.cartToken ??
+      req?.headers?.['x-cart-token'] ??
+      null
+    );
+  }
+
+  private ensureCartTokenCookie(req: any, res: Response) {
+    const token = this.getCartTokenFromRequest(req);
+    if (token) {
+      return token;
+    }
+
+    const newToken = randomUUID();
+    res.cookie('cart_token', newToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
+
+    return newToken;
+  }
+
   @Public()
   @Get()
-  getCart(@CurrentUser() userId: number | null, @Req() req: any) {
-    return this.cartService.getCart(userId, this.getGuestEmailFromRequest(req));
+  getCart(
+    @CurrentUser() userId: number | null,
+    @Req() req: any,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const cartToken = userId ? null : this.ensureCartTokenCookie(req, response);
+    return this.cartService.getCart(
+      userId,
+      this.getGuestEmailFromRequest(req),
+      cartToken,
+    );
   }
 
   @Public()
@@ -42,12 +81,15 @@ export class CartController {
   addItem(
     @CurrentUser() userId: number | null,
     @Req() req: any,
+    @Res({ passthrough: true }) response: Response,
     @Body() addToCartDto: AddToCartDto,
   ) {
+    const cartToken = userId ? null : this.ensureCartTokenCookie(req, response);
     return this.cartService.addItem(
       userId,
       addToCartDto,
       this.getGuestEmailFromRequest(req),
+      cartToken,
     );
   }
 
@@ -56,14 +98,17 @@ export class CartController {
   updateItemQuantity(
     @CurrentUser() userId: number | null,
     @Req() req: any,
+    @Res({ passthrough: true }) response: Response,
     @Param('productId', ParseIntPipe) productId: number,
     @Body() updateCartItemDto: UpdateCartItemDto,
   ) {
+    const cartToken = userId ? null : this.ensureCartTokenCookie(req, response);
     return this.cartService.updateItemQuantity(
       userId,
       productId,
       updateCartItemDto,
       this.getGuestEmailFromRequest(req) ?? updateCartItemDto.guestEmail,
+      cartToken,
     );
   }
 
@@ -72,13 +117,16 @@ export class CartController {
   removeItem(
     @CurrentUser() userId: number | null,
     @Req() req: any,
+    @Res({ passthrough: true }) response: Response,
     @Param('productId', ParseIntPipe) productId: number,
     @Query('guestEmail') guestEmail?: string,
   ) {
+    const cartToken = userId ? null : this.ensureCartTokenCookie(req, response);
     return this.cartService.removeItem(
       userId,
       productId,
       this.getGuestEmailFromRequest(req) ?? guestEmail,
+      cartToken,
     );
   }
 
@@ -87,11 +135,14 @@ export class CartController {
   clearCart(
     @CurrentUser() userId: number | null,
     @Req() req: any,
+    @Res({ passthrough: true }) response: Response,
     @Query('guestEmail') guestEmail?: string,
   ) {
+    const cartToken = userId ? null : this.ensureCartTokenCookie(req, response);
     return this.cartService.clearCart(
       userId,
       this.getGuestEmailFromRequest(req) ?? guestEmail,
+      cartToken,
     );
   }
 }

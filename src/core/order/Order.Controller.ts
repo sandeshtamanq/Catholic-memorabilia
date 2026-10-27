@@ -5,6 +5,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -31,8 +32,8 @@ export class OrderController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get()
-  getOrders(@CurrentUser() userId: number) {
-    return this.orderService.getOrders(userId);
+  getOrders(@CurrentUser() userId: number, @Req() req: any) {
+    return this.orderService.getOrders(userId, req.user?.role);
   }
 
   @ApiBearerAuth()
@@ -40,8 +41,9 @@ export class OrderController {
   @Get(':id')
   getOrderById(
     @CurrentUser() userId: number,
+    @Req() req: any,
     @Param('id', ParseIntPipe) orderId: number,
   ) {
-    return this.orderService.getOrderById(userId, orderId);
+    return this.orderService.getOrderById(userId, orderId, req.user?.role);
   }
 }

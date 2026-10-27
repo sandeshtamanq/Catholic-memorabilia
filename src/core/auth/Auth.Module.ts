@@ -7,6 +7,7 @@ import { PassportModule } from '@nestjs/passport';
 import { LocalStrategy } from './strategy/Local.Strategy';
 import { JwtStrategy } from './strategy/Jwt.Strategy';
 import { MailModule } from '../../infra/mail/Mail.Module';
+import { CartModule } from '../cart/Cart.Module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { MailModule } from '../../infra/mail/Mail.Module';
     }),
     UserModule,
     MailModule,
+    CartModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, LocalStrategy, JwtStrategy],

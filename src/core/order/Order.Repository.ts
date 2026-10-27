@@ -54,6 +54,13 @@ export class OrderRepository {
     return this.orderItemRepository.save(orderItems);
   }
 
+  async findAllOrders() {
+    return this.orderRepository.find({
+      relations: ['items', 'items.product'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async findOrdersByUser(userId: number) {
     return this.orderRepository.find({
       where: { userId },

@@ -98,6 +98,22 @@ export class ProductController {
     return this.productService.fetchRelatedProducts(categoryId, limit);
   }
 
+  @Get('suggestions')
+  fetchSuggestionsForUser(
+    @CurrentUser() userId: number | null,
+    @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
+  ) {
+    return this.productService.fetchSuggestionsForUser(userId, limit);
+  }
+
+  @Get('recommendations')
+  fetchRecommendations(
+    @CurrentUser() userId: number | null,
+    @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
+  ) {
+    return this.productService.fetchSuggestionsForUser(userId, limit);
+  }
+
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get('favorites')

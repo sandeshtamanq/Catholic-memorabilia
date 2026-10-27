@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserType } from '../user/entities/UserType.Enum';
+import { UserRole } from '../user/entities/UserRole.Enum';
 import { CreateOrderDto } from './dto/CreateOrderDto';
 import { OrderRepository } from './Order.Repository';
 import { UserActivity } from '../activity/entities/UserActivity.Entity';
@@ -103,32 +104,13 @@ export class OrderService {
         }
 
         const guestEmail = createOrderDto.guestEmail.trim().toLowerCase();
-        let guestUser = await this.orderRepository.findUserByEmail(guestEmail);
+        const { firstName, lastName } = this.splitGuestName(
+          createOrderDto.guestName,
+        );
 
-        if (!guestUser) {
-          const { firstName, lastName } = this.splitGuestName(
-            createOrderDto.guestName,
-          );
-
-          guestUser = await this.orderRepository.createGuestUser({
-            firstName,
-            lastName,
-            email: guestEmail,
-            contactNumber: createOrderDto.guestPhone,
-            password: await bcrypt.hash(
-              `guest-${Date.now()}-${guestEmail}`,
-              12,
-            ),
-            addressLine1: createOrderDto.addressLine1 ?? '',
-            addressLine2: createOrderDto.addressLine2 ?? undefined,
-            suburb: createOrderDto.suburb ?? '',
-            state: createOrderDto.state ?? '',
-            postcode: createOrderDto.postcode ?? '',
-            userType: UserType.Guest,
-          });
-        }
-
-        effectiveUserId = guestUser.id;
+        createOrderDto.guestName = `${firstName} ${lastName}`.trim();
+        createOrderDto.guestEmail = guestEmail;
+        effectiveUserId = null;
       } else {
         const user = await this.orderRepository.findUserById(effectiveUserId);
         if (!user) {
@@ -231,18 +213,25 @@ export class OrderService {
     }
   }
 
-  async getOrders(userId: number) {
+  async getOrders(userId: number, userRole?: UserRole) {
+    if (userRole === UserRole.Admin) {
+      return this.orderRepository.findAllOrders();
+    }
+
     return this.orderRepository.findOrdersByUser(userId);
   }
 
-  async getOrderById(userId: number, orderId: number) {
+  async getOrderById(userId: number, orderId: number, userRole?: UserRole) {
     const order = await this.orderRepository.findOneById(orderId);
 
     if (!order) {
       throw new NotFoundException('Order not found');
     }
 
-    if (order.userId && order.userId !== userId) {
+    const isOwner = order.userId === userId;
+    const isAdmin = userRole === UserRole.Admin;
+
+    if (!isOwner && !isAdmin) {
       throw new ForbiddenException('You are not allowed to view this order');
     }
 

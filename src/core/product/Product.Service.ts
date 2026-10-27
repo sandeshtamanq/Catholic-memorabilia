@@ -5,7 +5,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, Repository } from 'typeorm';
 import { S3StorageService } from '../../infra/supabase/Supabase.Service';
 import { ProductRepository } from './Product.Repository';
 import { CreateProductDto } from './dto/CreateProductDto';
@@ -13,6 +14,7 @@ import { UpdateProductDto } from './dto/UpdateProductDto';
 import { GptService } from '../../infra/claude/Gpt.Service';
 import { CategoryRepository } from '../category/Category.Repository';
 import { ProductFavorite } from './entities/ProductFavorite.Entity';
+import { UserActivity } from '../activity/entities/UserActivity.Entity';
 
 export type ProductListQuery = {
   page?: number;
@@ -33,6 +35,8 @@ export class ProductService {
     private readonly gptService: GptService,
     @Inject('PRODUCT_FAVORITE_REPOSITORY')
     private readonly favoriteRepository: Repository<ProductFavorite>,
+    @InjectRepository(UserActivity)
+    private readonly userActivityRepository: Repository<UserActivity>,
   ) {}
 
   async create(file: Express.Multer.File, createProductDto: CreateProductDto) {
@@ -132,6 +136,73 @@ export class ProductService {
 
   async fetchRelatedProducts(categoryId: number, limit = 8) {
     return this.productRepository.findRelatedProducts(categoryId, limit);
+  }
+
+  async fetchSuggestionsForUser(userId: number | null, limit = 8) {
+    if (!userId || !Number.isFinite(Number(userId))) {
+      return [];
+    }
+
+    const activities = await this.userActivityRepository.find({
+      where: {
+        userId,
+        action: In(['ADD_TO_CART', 'BUY_PRODUCT']),
+      },
+      order: { createdAt: 'DESC' },
+      take: 40,
+    });
+
+    if (!activities.length) {
+      return this.productRepository.findFeaturedProducts(limit);
+    }
+
+    const productIds = new Set<number>();
+
+    for (const activity of activities) {
+      if (activity.productId) {
+        productIds.add(activity.productId);
+      }
+
+      const metadataProductIds = Array.isArray(activity.metadata?.productIds)
+        ? activity.metadata.productIds
+        : [];
+
+      for (const productId of metadataProductIds) {
+        const numericProductId = Number(productId);
+        if (Number.isFinite(numericProductId)) {
+          productIds.add(numericProductId);
+        }
+      }
+    }
+
+    if (!productIds.size) {
+      return this.productRepository.findFeaturedProducts(limit);
+    }
+
+    const viewedProducts = await this.productRepository.findProductsByIds([
+      ...productIds,
+    ]);
+    const categoryIds = Array.from(
+      new Set(
+        viewedProducts
+          .filter((product) => typeof product?.categoryId === 'number')
+          .map((product) => product.categoryId),
+      ),
+    );
+
+    const suggestedProducts = categoryIds.length
+      ? await this.productRepository.findSuggestedProductsByCategories(
+          categoryIds,
+          [...productIds],
+          limit,
+        )
+      : [];
+
+    if (suggestedProducts.length > 0) {
+      return suggestedProducts.slice(0, limit);
+    }
+
+    return this.productRepository.findFeaturedProducts(limit);
   }
 
   async hasProducts(categoryId: number): Promise<boolean> {

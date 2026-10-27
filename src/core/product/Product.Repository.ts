@@ -200,13 +200,43 @@ export class ProductRepository {
       .where('p.categoryId = :categoryId', { categoryId })
       .leftJoinAndSelect('p.category', 'category');
 
-    // if (product?.categoryId) {
-    //   query.andWhere('p.categoryId = :categoryId', {
-    //     categoryId: product.categoryId,
-    //   });
-    // }
-
     return query.orderBy('p.createdAt', 'DESC').take(limit).getMany();
+  }
+
+  async findProductsByIds(productIds: number[]) {
+    if (!productIds.length) {
+      return [];
+    }
+
+    return this.repository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.category', 'category')
+      .where('p.id IN (:...productIds)', { productIds })
+      .getMany();
+  }
+
+  async findSuggestedProductsByCategories(
+    categoryIds: number[],
+    excludeProductIds: number[],
+    limit = 8,
+  ) {
+    if (!categoryIds.length) {
+      return [];
+    }
+
+    const query = this.repository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.category', 'category')
+      .where('p.categoryId IN (:...categoryIds)', { categoryIds })
+      .orderBy('p.createdAt', 'DESC');
+
+    if (excludeProductIds.length) {
+      query.andWhere('p.id NOT IN (:...excludeProductIds)', {
+        excludeProductIds,
+      });
+    }
+
+    return query.take(limit).getMany();
   }
 
   async count(categoryId) {

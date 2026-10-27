@@ -19,13 +19,17 @@ export class Cart {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ApiProperty()
-  @Column({ type: 'int', nullable: false })
-  userId: number;
+  @ApiProperty({ required: false })
+  @Column({ type: 'int', nullable: true })
+  userId?: number | null;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @ApiProperty({ required: false })
+  @Column({ type: 'varchar', nullable: true, unique: true })
+  guestToken?: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user?: User;
 
   @OneToMany(() => CartItem, (cartItem) => cartItem.cart, {
     cascade: true,

@@ -14,6 +14,7 @@ import { instanceToPlain } from 'class-transformer';
 import { Response } from 'express';
 import { CurrentUser } from '../../lib/decorators/CurrentUser.Decorator';
 import { User } from '../user/entities/User.Entity';
+import { CartService } from '../cart/Cart.Service';
 import { AuthService } from './Auth.Service';
 import { ChangePasswordDto } from './dto/ChangePasswordDto';
 import { ForgotPasswordDto } from './dto/ForgotPasswordDto';
@@ -28,7 +29,10 @@ import { LocalAuthGuard } from './guards/LocalAuth.Guard';
 @Controller('api/auth')
 @UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly cartService: CartService,
+  ) {}
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -37,6 +41,12 @@ export class AuthController {
     const data: { user: User; token: string } = await this.authService.login(
       req.user,
     );
+
+    const cartToken = req.cookies?.cart_token ?? req.cookies?.cartToken ?? null;
+    if (cartToken && req.user?.id) {
+      await this.cartService.mergeGuestCartIntoUser(req.user.id, cartToken);
+      response.clearCookie('cart_token');
+    }
 
     const userResponse = instanceToPlain(data);
 

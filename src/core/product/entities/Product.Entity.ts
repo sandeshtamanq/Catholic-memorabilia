@@ -11,6 +11,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Category } from '../../category/entities/Category.Entity';
+import { ProductReview } from '../../review/entities/ProductReview.Entity';
+
 @Entity('products')
 export class Product {
   @ApiProperty()
@@ -33,6 +35,9 @@ export class Product {
     onDelete: 'CASCADE',
   })
   category: Category;
+
+  @OneToMany(() => ProductReview, (review) => review.product)
+  reviews: ProductReview[];
 
   @ApiProperty()
   @Column({ type: 'number', nullable: false })

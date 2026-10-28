@@ -131,6 +131,16 @@ export class ProductController {
     return this.productService.toggleFavorite(userId, productId);
   }
 
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/favorite')
+  deleteFavorite(
+    @CurrentUser() userId: number,
+    @Param('id', ParseIntPipe) productId: number,
+  ) {
+    return this.productService.removeFavorite(userId, productId);
+  }
+
   @Get(':id')
   fetchDetail(@Param('id', ParseIntPipe) id: number) {
     return this.productService.fetchDetail(id);

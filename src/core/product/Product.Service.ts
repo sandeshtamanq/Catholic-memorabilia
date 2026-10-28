@@ -289,6 +289,36 @@ export class ProductService {
     };
   }
 
+  async removeFavorite(userId: number, productId: number) {
+    if (!userId || !productId) {
+      throw new BadRequestException('User and product are required');
+    }
+
+    const product = await this.productRepository.findOne(productId);
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const existingFavorite = await this.favoriteRepository.findOne({
+      where: { userId, productId },
+    });
+
+    if (!existingFavorite) {
+      return {
+        favorited: false,
+        message: 'Favorite not found',
+      };
+    }
+
+    await this.favoriteRepository.remove(existingFavorite);
+
+    return {
+      favorited: false,
+      favorite: existingFavorite,
+      message: 'Favorite removed',
+    };
+  }
+
   async getFavorites(userId: number) {
     if (!userId) {
       throw new BadRequestException('User is required');

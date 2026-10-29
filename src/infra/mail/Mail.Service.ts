@@ -6,6 +6,20 @@ import { User } from '../../core/user/entities/User.Entity';
 export class MailService {
   constructor(private mailerService: MailerService) {}
 
+  private normalizeOrderItems(order: any) {
+    return (order?.items ?? []).map((item: any) => ({
+      ...item,
+      productName:
+        item?.product?.name ??
+        item?.productName ??
+        `Product ${item?.productId ?? 'Unknown'}`,
+      quantity: Number(item?.quantity ?? 1),
+      totalPrice: Number(
+        item?.totalPrice ?? item?.priceAfterDiscount ?? item?.unitPrice ?? 0,
+      ).toFixed(2),
+    }));
+  }
+
   async sendUserConfirmation(user: User, token: string) {
     const url = `${process.env.FE_APP}/verify-email?token=${token}`;
 
@@ -35,6 +49,8 @@ export class MailService {
   }
 
   async sendOrderConfirmation(email: string, order: any) {
+    const items = this.normalizeOrderItems(order);
+
     await this.mailerService.sendMail({
       to: email,
       subject: `Order Confirmation - ${order.orderNumber ?? '#order'}`,
@@ -43,7 +59,7 @@ export class MailService {
         customerName: order.customerName ?? 'Customer',
         orderNumber: order.orderNumber ?? '#order',
         status: order.status ?? 'PENDING',
-        items: order.items ?? [],
+        items,
         totalAmount: Number(order.totalAmount ?? 0).toFixed(2),
         shippingFee: Number(order.shippingFee ?? 0).toFixed(2),
         createdAt: order.createdAt
@@ -54,6 +70,8 @@ export class MailService {
   }
 
   async sendOrderStatusUpdate(email: string, order: any) {
+    const items = this.normalizeOrderItems(order);
+
     await this.mailerService.sendMail({
       to: email,
       subject: `Order Update - ${order.orderNumber ?? '#order'}`,
@@ -62,7 +80,7 @@ export class MailService {
         customerName: order.customerName ?? 'Customer',
         orderNumber: order.orderNumber ?? '#order',
         status: order.status ?? 'PENDING',
-        items: order.items ?? [],
+        items,
         totalAmount: Number(order.totalAmount ?? 0).toFixed(2),
         shippingFee: Number(order.shippingFee ?? 0).toFixed(2),
       },

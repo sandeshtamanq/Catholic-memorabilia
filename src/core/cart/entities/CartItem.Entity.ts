@@ -20,7 +20,7 @@ export class CartItem {
   cartId: number;
 
   @ApiProperty()
-  @Column({ type: 'int', nullable: false })
+  @Column({ type: 'int', nullable: true })
   productId: number;
 
   @ApiProperty({ type: () => Product })

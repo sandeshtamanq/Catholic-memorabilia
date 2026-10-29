@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { S3StorageService } from '../../infra/supabase/Supabase.Service';
 import { Product } from '../product/entities/Product.Entity';
 import { Bundle } from './entities/Bundle.Entity';
 import { BundleItem } from './entities/BundleItem.Entity';
@@ -22,6 +23,7 @@ export class BundleService {
     private readonly bundleItemRepository: Repository<BundleItem>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    private readonly supabaseService: S3StorageService,
   ) {}
 
   async createBundle(dto: CreateBundleDto) {
@@ -102,6 +104,7 @@ export class BundleService {
     const updatedBundle = await this.bundleRepository.save({
       ...bundle,
       ...dto,
+      imageUrl: bundle.imageUrl,
       items: undefined,
     });
 

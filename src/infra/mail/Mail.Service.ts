@@ -33,4 +33,39 @@ export class MailService {
       },
     });
   }
+
+  async sendOrderConfirmation(email: string, order: any) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: `Order Confirmation - ${order.orderNumber ?? '#order'}`,
+      template: './order-confirmation',
+      context: {
+        customerName: order.customerName ?? 'Customer',
+        orderNumber: order.orderNumber ?? '#order',
+        status: order.status ?? 'PENDING',
+        items: order.items ?? [],
+        totalAmount: Number(order.totalAmount ?? 0).toFixed(2),
+        shippingFee: Number(order.shippingFee ?? 0).toFixed(2),
+        createdAt: order.createdAt
+          ? new Date(order.createdAt).toLocaleDateString()
+          : new Date().toLocaleDateString(),
+      },
+    });
+  }
+
+  async sendOrderStatusUpdate(email: string, order: any) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: `Order Update - ${order.orderNumber ?? '#order'}`,
+      template: './order-status-update',
+      context: {
+        customerName: order.customerName ?? 'Customer',
+        orderNumber: order.orderNumber ?? '#order',
+        status: order.status ?? 'PENDING',
+        items: order.items ?? [],
+        totalAmount: Number(order.totalAmount ?? 0).toFixed(2),
+        shippingFee: Number(order.shippingFee ?? 0).toFixed(2),
+      },
+    });
+  }
 }

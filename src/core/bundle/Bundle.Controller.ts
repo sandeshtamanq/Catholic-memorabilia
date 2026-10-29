@@ -1,5 +1,6 @@
 import {
   Body,
+  ClassSerializerInterceptor,
   Controller,
   Delete,
   Get,
@@ -7,9 +8,13 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import 'multer';
 import { hasRoles } from '../../lib/decorators/Roles.Decorator';
 import { Public } from '../../lib/decorators/Public.Decorator';
 import { JwtAuthGuard } from '../auth/guards/JwtAuth.Guard';
@@ -23,6 +28,7 @@ import { BundleStatus } from './entities/BundleStatus.Enum';
 
 @ApiTags('bundles')
 @Controller('api/bundles')
+@UseInterceptors(ClassSerializerInterceptor)
 export class BundleController {
   constructor(private readonly bundleService: BundleService) {}
 

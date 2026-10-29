@@ -21,6 +21,10 @@ export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @ApiProperty({ example: '#order1' })
+  @Column({ type: 'varchar', unique: true, nullable: false })
+  orderNumber: string;
+
   @ApiProperty({ required: false })
   @Column({ type: 'int', nullable: true })
   userId?: number | null;

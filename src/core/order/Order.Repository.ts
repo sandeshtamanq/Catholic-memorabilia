@@ -52,6 +52,10 @@ export class OrderRepository {
     return this.productRepository.findByIds(productIds);
   }
 
+  async countOrders() {
+    return this.orderRepository.count();
+  }
+
   async createOrder(orderData: Partial<Order>) {
     const order = this.orderRepository.create(orderData);
     return this.orderRepository.save(order);

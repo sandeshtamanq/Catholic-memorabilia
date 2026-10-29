@@ -19,6 +19,7 @@ import {
   roundMoney,
   ShippingMethod,
 } from '../cart/ShippingPolicy';
+import { MailService } from '../../infra/mail/Mail.Service';
 
 @Injectable()
 export class OrderService {
@@ -26,6 +27,7 @@ export class OrderService {
     private readonly orderRepository: OrderRepository,
     @InjectRepository(UserActivity)
     private readonly userActivityRepository: Repository<UserActivity>,
+    private readonly mailService: MailService,
   ) {}
 
   private splitGuestName(fullName?: string) {
@@ -85,6 +87,64 @@ export class OrderService {
       discountAmount: Number(discountAmount.toFixed(2)),
       totalPrice,
     };
+  }
+
+  private async resolveOrderRecipientEmail(order: {
+    userId?: number | null;
+    guestEmail?: string | null;
+  }) {
+    if (order.guestEmail) {
+      return order.guestEmail;
+    }
+
+    if (order.userId) {
+      const user = await this.orderRepository.findUserById(order.userId);
+      return user?.email ?? null;
+    }
+
+    return null;
+  }
+
+  private async sendOrderConfirmationEmail(order: any) {
+    const email = await this.resolveOrderRecipientEmail(order);
+    if (!email) {
+      return;
+    }
+
+    try {
+      await this.mailService.sendOrderConfirmation(email, {
+        ...order,
+        customerName:
+          order.guestName ||
+          (order.user?.firstName
+            ? `${order.user.firstName} ${order.user.lastName || ''}`.trim()
+            : 'Customer'),
+        status: order.orderStatus ?? OrderStatus.Pending,
+      });
+    } catch (error) {
+      console.error('Failed to send order confirmation email:', error);
+    }
+  }
+
+  private async sendOrderStatusUpdateEmail(order: any) {
+    const email = await this.resolveOrderRecipientEmail(order);
+    if (!email) {
+      return;
+    }
+
+    try {
+      await this.mailService.sendOrderStatusUpdate(email, {
+        ...order,
+        customerName:
+          order.guestName ||
+          (order.user?.firstName
+            ? `${order.user.firstName} ${order.user.lastName || ''}`.trim()
+            : 'Customer'),
+        status: order.orderStatus ?? OrderStatus.Pending,
+      });
+    } catch (error) {
+      console.error('Failed to send order status update email:', error);
+    }
   }
 
   async createOrder(
@@ -170,7 +230,9 @@ export class OrderService {
         totalPrice: number;
       }> = [];
       const shippingMethod =
-        createOrderDto.shippingMethod ?? ShippingMethod.Standard;
+        typeof createOrderDto.shippingMethod === 'string'
+          ? (createOrderDto.shippingMethod.toLowerCase() as ShippingMethod)
+          : createOrderDto.shippingMethod ?? ShippingMethod.Standard;
 
       const productIds = [
         ...new Set(createOrderDto.items.map((item) => item.productId)),
@@ -224,6 +286,12 @@ export class OrderService {
         );
       }
 
+      const totalOrders =
+        typeof this.orderRepository.countOrders === 'function'
+          ? await this.orderRepository.countOrders()
+          : 0;
+      const nextOrderNumber = `#order${totalOrders + 1}`;
+
       const order = await this.orderRepository.createOrder({
         userId: effectiveUserId,
         guestName: createOrderDto.guestName ?? null,
@@ -233,6 +301,7 @@ export class OrderService {
         deliveryAddress: finalDeliveryAddress || null,
         shippingMethod,
         shippingFee,
+        orderNumber: nextOrderNumber,
         orderStatus: OrderStatus.Pending,
         totalItems,
         totalAmount: Number(totalAmount.toFixed(2)),
@@ -265,7 +334,13 @@ export class OrderService {
           ? await this.orderRepository.findOneById(order.id)
           : null;
 
-      return savedOrder ?? order;
+      if (savedOrder) {
+        await this.sendOrderConfirmationEmail(savedOrder);
+        return savedOrder;
+      }
+
+      await this.sendOrderConfirmationEmail(order);
+      return order;
     } catch (error) {
       if (
         error instanceof BadRequestException ||
@@ -317,6 +392,12 @@ export class OrderService {
     }
 
     order.orderStatus = status;
-    return this.orderRepository.updateOrder(order);
+    const updatedOrder = await this.orderRepository.updateOrder(order);
+    const refreshedOrder = await this.orderRepository.findOneById(orderId);
+    if (refreshedOrder) {
+      await this.sendOrderStatusUpdateEmail(refreshedOrder);
+      return refreshedOrder;
+    }
+    return updatedOrder;
   }
 }

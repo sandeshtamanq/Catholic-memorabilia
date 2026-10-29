@@ -1,0 +1,40 @@
+<p>Hi {{customerName}},</p>
+<p>Your order <strong>{{orderNumber}}</strong> has been updated.</p>
+<p><strong>Current Status:</strong> {{status}}</p>
+
+<table style='border-collapse: collapse; width: 100%; max-width: 600px;'>
+  <thead>
+    <tr>
+      <th
+        align='left'
+        style='border-bottom: 1px solid #ddd; padding: 8px;'
+      >Product</th>
+      <th
+        align='left'
+        style='border-bottom: 1px solid #ddd; padding: 8px;'
+      >Qty</th>
+      <th
+        align='left'
+        style='border-bottom: 1px solid #ddd; padding: 8px;'
+      >Price</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each items}}
+      <tr>
+        <td
+          style='padding: 8px; border-bottom: 1px solid #ddd;'
+        >{{this.product.name}}</td>
+        <td
+          style='padding: 8px; border-bottom: 1px solid #ddd;'
+        >{{this.quantity}}</td>
+        <td
+          style='padding: 8px; border-bottom: 1px solid #ddd;'
+        >${{this.totalPrice}}</td>
+      </tr>
+    {{/each}}
+  </tbody>
+</table>
+
+<p style='margin-top: 16px;'><strong>Total Paid:</strong> ${{totalAmount}}</p>
+<p>We will keep you updated as your order progresses.</p>

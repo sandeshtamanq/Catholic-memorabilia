@@ -63,13 +63,13 @@ export class ProductRepository {
     }
 
     if (minPrice !== null) {
-      query.andWhere('CAST(p.productPrice AS DECIMAL) >= :minPrice', {
+      query.andWhere('p.netPrice >= :minPrice', {
         minPrice,
       });
     }
 
     if (maxPrice !== null) {
-      query.andWhere('CAST(p.productPrice AS DECIMAL) <= :maxPrice', {
+      query.andWhere('p.netPrice <= :maxPrice', {
         maxPrice,
       });
     }
@@ -77,8 +77,9 @@ export class ProductRepository {
     const sortColumnMap: Record<string, string> = {
       alphabet: 'p.productName',
       name: 'p.productName',
-      price: 'CAST(p.productPrice AS DECIMAL)',
+      price: 'p.netPrice',
       createdat: 'p.createdAt',
+      createdAt: 'p.createdAt',
     };
 
     const orderColumn = sortColumnMap[sortBy] ?? 'p.createdAt';
@@ -234,13 +235,13 @@ export class ProductRepository {
     }
 
     if (minPrice !== null) {
-      query.andWhere('CAST(p.productPrice AS DECIMAL) >= :minPrice', {
+      query.andWhere('p.netPrice >= :minPrice', {
         minPrice,
       });
     }
 
     if (maxPrice !== null) {
-      query.andWhere('CAST(p.productPrice AS DECIMAL) <= :maxPrice', {
+      query.andWhere('p.netPrice <= :maxPrice', {
         maxPrice,
       });
     }
@@ -248,8 +249,9 @@ export class ProductRepository {
     const sortColumnMap: Record<string, string> = {
       alphabet: 'p.productName',
       name: 'p.productName',
-      price: 'CAST(p.productPrice AS DECIMAL)',
+      price: 'p.netPrice',
       createdat: 'p.createdAt',
+      createdAt: 'p.createdAt',
     };
 
     const orderColumn = sortColumnMap[sortBy] ?? 'p.createdAt';

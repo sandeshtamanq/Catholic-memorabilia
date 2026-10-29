@@ -44,6 +44,14 @@ export class OrderRepository {
     return this.productRepository.findOne({ where: { id: productId } });
   }
 
+  async getProductsByIds(productIds: number[]) {
+    if (!productIds.length) {
+      return [];
+    }
+
+    return this.productRepository.findByIds(productIds);
+  }
+
   async createOrder(orderData: Partial<Order>) {
     const order = this.orderRepository.create(orderData);
     return this.orderRepository.save(order);

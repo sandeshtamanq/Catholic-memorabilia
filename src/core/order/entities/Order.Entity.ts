@@ -11,6 +11,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/User.Entity';
+import { OrderStatus } from './OrderStatus.Enum';
 import { OrderItem } from './OrderItem.Entity';
 
 @Entity('orders')
@@ -41,11 +42,15 @@ export class Order {
 
   @ApiProperty({ required: false })
   @Column({ type: 'varchar', nullable: true })
+  shippingAddress?: string;
+
+  @ApiProperty({ required: false })
+  @Column({ type: 'varchar', nullable: true })
   deliveryAddress?: string;
 
-  @ApiProperty()
-  @Column({ type: 'varchar', default: 'PENDING' })
-  orderStatus: string;
+  @ApiProperty({ enum: OrderStatus, default: OrderStatus.Pending })
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.Pending })
+  orderStatus: OrderStatus;
 
   @ApiProperty()
   @Column({ type: 'int', default: 0 })

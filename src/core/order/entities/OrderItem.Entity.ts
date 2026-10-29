@@ -37,7 +37,19 @@ export class OrderItem {
 
   @ApiProperty()
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  originalPrice: number;
+
+  @ApiProperty()
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   unitPrice: number;
+
+  @ApiProperty()
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  priceAfterDiscount: number;
+
+  @ApiProperty()
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  discountAmount: number;
 
   @ApiProperty()
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })

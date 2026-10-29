@@ -12,6 +12,7 @@ import { UserType } from '../user/entities/UserType.Enum';
 import { UserRole } from '../user/entities/UserRole.Enum';
 import { CreateOrderDto } from './dto/CreateOrderDto';
 import { OrderRepository } from './Order.Repository';
+import { OrderStatus } from './entities/OrderStatus.Enum';
 import { UserActivity } from '../activity/entities/UserActivity.Entity';
 
 @Injectable()
@@ -65,6 +66,22 @@ export class OrderService {
     return fallback || '';
   }
 
+  private getProductPriceSnapshot(product: any, quantity: number) {
+    const originalPrice = Number(product?.productPrice ?? 0);
+    const discountedPrice = Number(product?.netPrice ?? 0);
+    const priceAfterDiscount =
+      discountedPrice > 0 ? discountedPrice : originalPrice;
+    const discountAmount = Math.max(originalPrice - priceAfterDiscount, 0);
+    const totalPrice = Number((priceAfterDiscount * quantity).toFixed(2));
+
+    return {
+      originalPrice: Number(originalPrice.toFixed(2)),
+      priceAfterDiscount: Number(priceAfterDiscount.toFixed(2)),
+      discountAmount: Number(discountAmount.toFixed(2)),
+      totalPrice,
+    };
+  }
+
   async createOrder(
     userIdOrDto: number | null | CreateOrderDto,
     maybeDto?: CreateOrderDto,
@@ -84,12 +101,22 @@ export class OrderService {
         createOrderDto.userId ??
         null;
 
+      const shippingAddress = this.formatDeliveryAddress({
+        addressLine1: createOrderDto.shippingAddressLine1,
+        addressLine2: createOrderDto.shippingAddressLine2,
+        suburb: createOrderDto.shippingSuburb,
+        state: createOrderDto.shippingState,
+        postcode: createOrderDto.shippingPostcode,
+        fallback: createOrderDto.shippingAddress,
+      });
+
       const deliveryAddress = this.formatDeliveryAddress({
-        addressLine1: createOrderDto.addressLine1,
-        addressLine2: createOrderDto.addressLine2,
-        suburb: createOrderDto.suburb,
-        state: createOrderDto.state,
-        postcode: createOrderDto.postcode,
+        addressLine1: createOrderDto.deliveryAddressLine1,
+        addressLine2: createOrderDto.deliveryAddressLine2,
+        suburb: createOrderDto.deliverySuburb,
+        state: createOrderDto.deliveryState,
+        postcode: createOrderDto.deliveryPostcode,
+        fallback: createOrderDto.deliveryAddress,
       });
 
       if (!effectiveUserId) {
@@ -127,14 +154,23 @@ export class OrderService {
       const orderItems: Array<{
         productId: number;
         quantity: number;
+        originalPrice: number;
         unitPrice: number;
+        priceAfterDiscount: number;
+        discountAmount: number;
         totalPrice: number;
       }> = [];
 
+      const productIds = [
+        ...new Set(createOrderDto.items.map((item) => item.productId)),
+      ];
+      const products = await this.orderRepository.getProductsByIds(productIds);
+      const productMap = new Map(
+        products.map((product) => [product.id, product]),
+      );
+
       for (const item of createOrderDto.items) {
-        const product = await this.orderRepository.getProductById(
-          item.productId,
-        );
+        const product = productMap.get(item.productId);
 
         if (!product) {
           throw new NotFoundException(
@@ -148,17 +184,19 @@ export class OrderService {
           );
         }
 
-        const unitPrice = Number(product.productPrice);
-        const totalPrice = Number((unitPrice * item.quantity).toFixed(2));
+        const pricing = this.getProductPriceSnapshot(product, item.quantity);
 
         totalItems += item.quantity;
-        totalAmount += totalPrice;
+        totalAmount += pricing.totalPrice;
 
         orderItems.push({
           productId: item.productId,
           quantity: item.quantity,
-          unitPrice,
-          totalPrice,
+          originalPrice: pricing.originalPrice,
+          unitPrice: pricing.priceAfterDiscount,
+          priceAfterDiscount: pricing.priceAfterDiscount,
+          discountAmount: pricing.discountAmount,
+          totalPrice: pricing.totalPrice,
         });
       }
 
@@ -167,8 +205,9 @@ export class OrderService {
         guestName: createOrderDto.guestName ?? null,
         guestEmail: createOrderDto.guestEmail ?? null,
         guestPhone: createOrderDto.guestPhone ?? null,
+        shippingAddress: shippingAddress || null,
         deliveryAddress: deliveryAddress || null,
-        orderStatus: 'PENDING',
+        orderStatus: OrderStatus.Pending,
         totalItems,
         totalAmount: Number(totalAmount.toFixed(2)),
       });

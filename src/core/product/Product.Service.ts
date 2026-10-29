@@ -39,6 +39,27 @@ export class ProductService {
     private readonly userActivityRepository: Repository<UserActivity>,
   ) {}
 
+  calculateNetPrice(
+    productPrice: number | string,
+    discountPercentage?: number,
+    netPrice?: number | string,
+  ) {
+    const basePrice = Number(productPrice ?? 0);
+    const discount = Number(discountPercentage ?? 0);
+    const providedNetPrice = Number(netPrice ?? 0);
+
+    if (Number.isFinite(providedNetPrice) && providedNetPrice > 0) {
+      return Number(providedNetPrice.toFixed(2));
+    }
+
+    const effectivePrice =
+      discount > 0 ? basePrice * (1 - discount / 100) : basePrice;
+
+    return Number(
+      (Number.isFinite(effectivePrice) ? effectivePrice : basePrice).toFixed(2),
+    );
+  }
+
   async create(file: Express.Multer.File, createProductDto: CreateProductDto) {
     try {
       const path = `products/${Date.now()}-${file.originalname}`;
@@ -48,9 +69,21 @@ export class ProductService {
         file,
       );
 
+      const productPrice = Number(createProductDto.productPrice ?? 0);
+      const discountPercentage = Number(
+        createProductDto.discountPercentage ?? 0,
+      );
+
       const newProduct = await this.productRepository.create({
         ...createProductDto,
         productImageUrl: imageUrl,
+        netPrice: this.calculateNetPrice(
+          productPrice,
+          discountPercentage,
+          createProductDto.netPrice,
+        ),
+        hasDiscount:
+          discountPercentage > 0 || Boolean(createProductDto.hasDiscount),
       });
 
       if (!newProduct) throw new HttpException('Something went wrong', 500);
@@ -134,8 +167,24 @@ export class ProductService {
     });
   }
 
-  async fetchRelatedProducts(categoryId: number, limit = 8) {
-    return this.productRepository.findRelatedProducts(categoryId, limit);
+  async fetchRelatedProducts(categoryId: number, query?: ProductListQuery) {
+    const page = query?.page ?? 1;
+    const limit = query?.limit ?? 8;
+    const search = query?.search;
+    const minPrice = query?.minPrice;
+    const maxPrice = query?.maxPrice;
+    const sortBy = query?.sortBy;
+    const sortOrder = query?.sortOrder;
+
+    return this.productRepository.findRelatedProducts(categoryId, {
+      page,
+      limit,
+      search,
+      minPrice,
+      maxPrice,
+      sortBy,
+      sortOrder,
+    });
   }
 
   async fetchSuggestionsForUser(userId: number | null, limit = 8) {
@@ -242,10 +291,26 @@ export class ProductService {
           updateProductDto.productImage,
         );
       }
+
+      const nextProductPrice = Number(
+        updateProductDto.productPrice ?? product.productPrice ?? 0,
+      );
+      const nextDiscountPercentage = Number(
+        updateProductDto.discountPercentage ?? product.discountPercentage ?? 0,
+      );
+
       const { category, ...restProduct } = product;
       const newProduct = await this.productRepository.update({
         ...restProduct,
         ...updateProductDto,
+        hasDiscount:
+          nextDiscountPercentage > 0 ||
+          Boolean(updateProductDto.hasDiscount ?? product.hasDiscount),
+        netPrice: this.calculateNetPrice(
+          nextProductPrice,
+          nextDiscountPercentage,
+          updateProductDto.netPrice ?? product.netPrice,
+        ),
       });
       if (!newProduct) throw new NotFoundException();
       return newProduct;

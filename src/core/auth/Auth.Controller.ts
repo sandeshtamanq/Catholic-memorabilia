@@ -50,13 +50,15 @@ export class AuthController {
 
     const userResponse = instanceToPlain(data);
 
+    const isProduction = process.env.NODE_ENV === 'production';
+
     response
       .cookie('token', data.token, {
         httpOnly: true,
-        secure: true,
+        secure: isProduction,
         maxAge: 1000 * 60 * 60 * 24 * 14,
         expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14),
-        sameSite: 'none',
+        sameSite: isProduction ? 'none' : 'lax',
       })
       .send({
         ...userResponse.user,
@@ -97,6 +99,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('sign-out')
   async logout(@Res() response: Response) {
-    response.clearCookie('token').send();
+    response.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    });
+    response.send();
   }
 }

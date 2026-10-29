@@ -194,13 +194,79 @@ export class ProductRepository {
     return query.orderBy('p.createdAt', 'DESC').getMany();
   }
 
-  async findRelatedProducts(categoryId: number, limit = 8) {
+  async findRelatedProducts(
+    categoryId: number,
+    opts?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      minPrice?: number;
+      maxPrice?: number;
+      sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
+    },
+  ) {
+    const page = opts?.page ?? 1;
+    const limit = opts?.limit ?? 8;
+    const search = opts?.search?.trim().toLowerCase();
+    const minPrice =
+      typeof opts?.minPrice === 'number' && !Number.isNaN(opts.minPrice)
+        ? opts.minPrice
+        : null;
+    const maxPrice =
+      typeof opts?.maxPrice === 'number' && !Number.isNaN(opts.maxPrice)
+        ? opts.maxPrice
+        : null;
+    const sortBy = (opts?.sortBy ?? 'createdAt').toLowerCase();
+    const sortOrder =
+      (opts?.sortOrder ?? 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
     const query = this.repository
       .createQueryBuilder('p')
       .where('p.categoryId = :categoryId', { categoryId })
       .leftJoinAndSelect('p.category', 'category');
 
-    return query.orderBy('p.createdAt', 'DESC').take(limit).getMany();
+    if (search) {
+      query.andWhere(
+        'LOWER(p.productName) LIKE :search OR LOWER(p.productDescription) LIKE :search',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (minPrice !== null) {
+      query.andWhere('CAST(p.productPrice AS DECIMAL) >= :minPrice', {
+        minPrice,
+      });
+    }
+
+    if (maxPrice !== null) {
+      query.andWhere('CAST(p.productPrice AS DECIMAL) <= :maxPrice', {
+        maxPrice,
+      });
+    }
+
+    const sortColumnMap: Record<string, string> = {
+      alphabet: 'p.productName',
+      name: 'p.productName',
+      price: 'CAST(p.productPrice AS DECIMAL)',
+      createdat: 'p.createdAt',
+    };
+
+    const orderColumn = sortColumnMap[sortBy] ?? 'p.createdAt';
+
+    const [items, total] = await query
+      .orderBy(orderColumn, sortOrder)
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findProductsByIds(productIds: number[]) {

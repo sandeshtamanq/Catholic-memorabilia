@@ -93,9 +93,9 @@ export class ProductController {
   @Get('related/:categoryId')
   fetchRelatedProducts(
     @Param('categoryId', ParseIntPipe) categoryId: number,
-    @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
+    @Query() query: PaginationQueryDto,
   ) {
-    return this.productService.fetchRelatedProducts(categoryId, limit);
+    return this.productService.fetchRelatedProducts(categoryId, query);
   }
 
   @Get('suggestions')

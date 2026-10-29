@@ -29,6 +29,97 @@ export class CartService {
     return cartToken?.trim() || null;
   }
 
+  private getPriceBreakdown(product: any, fallbackUnitPrice = 0) {
+    const originalPrice = Number(
+      product?.productPrice ?? fallbackUnitPrice ?? 0,
+    );
+    const discountPercentage = Number(product?.discountPercentage ?? 0);
+    const discountedFromProduct = Number(product?.netPrice ?? 0);
+    const priceAfterDiscount =
+      discountedFromProduct > 0
+        ? discountedFromProduct
+        : discountPercentage > 0
+          ? originalPrice * (1 - discountPercentage / 100)
+          : originalPrice;
+
+    return {
+      originalPrice: Number(originalPrice.toFixed(2)),
+      priceAfterDiscount: Number(Number(priceAfterDiscount).toFixed(2)),
+      discountAmount: Number(
+        Math.max(originalPrice - priceAfterDiscount, 0).toFixed(2),
+      ),
+    };
+  }
+
+  private mapCartItem(item: any) {
+    const product = item?.product ?? {};
+    const unitPriceFromProduct = this.getPriceBreakdown(
+      product,
+      Number(item?.netPrice ?? item?.unitPrice ?? 0),
+    );
+    const quantity = Number(item?.quantity ?? 1);
+    const effectiveUnitPrice = Number(
+      item?.netPrice ??
+        item?.unitPrice ??
+        unitPriceFromProduct.priceAfterDiscount ??
+        0,
+    );
+    const originalPrice = Number(
+      item?.product?.productPrice ??
+        unitPriceFromProduct.originalPrice ??
+        effectiveUnitPrice,
+    );
+    const priceAfterDiscount = Number(
+      (
+        effectiveUnitPrice ||
+        unitPriceFromProduct.priceAfterDiscount ||
+        originalPrice
+      ).toFixed(2),
+    );
+    const discountAmount = Number(
+      (Math.max(originalPrice - priceAfterDiscount, 0) * quantity).toFixed(2),
+    );
+    const totalPrice = Number((priceAfterDiscount * quantity).toFixed(2));
+
+    return {
+      ...item,
+      originalPrice: Number(originalPrice.toFixed(2)),
+      priceAfterDiscount,
+      discountAmount,
+      totalPrice,
+      unitPrice: priceAfterDiscount,
+    };
+  }
+
+  private attachCartSummary(cart: any) {
+    if (!cart) {
+      return cart;
+    }
+
+    const items = Array.isArray(cart.items)
+      ? cart.items.map((item: any) => this.mapCartItem(item))
+      : [];
+
+    const totalAmount = items.reduce(
+      (sum: number, item: any) => sum + Number(item.totalPrice || 0),
+      0,
+    );
+    const totalDiscountAmount = items.reduce(
+      (sum: number, item: any) => sum + Number(item.discountAmount || 0),
+      0,
+    );
+    const shippingCharge = totalAmount > 0 ? 50 : 0;
+
+    return {
+      ...cart,
+      items,
+      totalAmount: Number(totalAmount.toFixed(2)),
+      totalDiscountAmount: Number(totalDiscountAmount.toFixed(2)),
+      shippingCharge: Number(shippingCharge.toFixed(2)),
+      netPayableAmount: Number((totalAmount + shippingCharge).toFixed(2)),
+    };
+  }
+
   private async resolveCartOwner(
     userId: number | null,
     guestEmail?: string | null,
@@ -94,7 +185,7 @@ export class CartService {
           cart = await this.cartRepository.createCart(owner.userId);
         }
 
-        return cart;
+        return this.attachCartSummary(cart);
       }
 
       let cart = await this.cartRepository.findCartByGuestToken(
@@ -105,8 +196,9 @@ export class CartService {
         cart = await this.cartRepository.createCartForGuest(owner.guestToken);
       }
 
-      return cart;
+      return this.attachCartSummary(cart);
     } catch (error) {
+      console.log(error);
       throw new HttpException('Something went wrong', 500);
     }
   }
@@ -150,11 +242,12 @@ export class CartService {
         addToCartDto.productId,
       );
 
-      const unitPrice = Number(product.productPrice);
+      const unitPrice = Number(product.netPrice || product.productPrice || 0);
 
       if (existingItem) {
         existingItem.quantity += addToCartDto.quantity;
         existingItem.unitPrice = unitPrice;
+        existingItem.netPrice = unitPrice;
         existingItem.totalPrice = Number(
           (existingItem.quantity * unitPrice).toFixed(2),
         );
@@ -166,6 +259,7 @@ export class CartService {
           productId: product.id,
           quantity: addToCartDto.quantity,
           unitPrice,
+          netPrice: unitPrice,
           totalPrice: Number((addToCartDto.quantity * unitPrice).toFixed(2)),
         });
       }
@@ -230,9 +324,13 @@ export class CartService {
       }
 
       existingItem.quantity = updateCartItemDto.quantity;
-      existingItem.unitPrice = Number(existingItem.unitPrice || 0);
+      const effectiveUnitPrice = Number(
+        existingItem.netPrice || existingItem.unitPrice || 0,
+      );
+      existingItem.unitPrice = effectiveUnitPrice;
+      existingItem.netPrice = effectiveUnitPrice;
       existingItem.totalPrice = Number(
-        (existingItem.unitPrice * existingItem.quantity).toFixed(2),
+        (effectiveUnitPrice * existingItem.quantity).toFixed(2),
       );
 
       await this.cartRepository.saveCartItem(existingItem);

@@ -45,6 +45,29 @@ export class Cart {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   totalAmount: number;
 
+  @ApiProperty({ type: 'number', required: false })
+  get totalDiscountAmount(): number {
+    if (!Array.isArray(this.items) || !this.items.length) {
+      return 0;
+    }
+
+    return Number(
+      this.items
+        .reduce((sum, item) => sum + Number(item.discountAmount ?? 0), 0)
+        .toFixed(2),
+    );
+  }
+
+  @ApiProperty({ type: 'number', required: false })
+  get shippingCharge(): number {
+    return this.totalAmount > 0 ? 50 : 0;
+  }
+
+  @ApiProperty({ type: 'number', required: false })
+  get netPayableAmount(): number {
+    return Number((this.totalAmount + this.shippingCharge).toFixed(2));
+  }
+
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp', nullable: false })
   createdAt: Date;

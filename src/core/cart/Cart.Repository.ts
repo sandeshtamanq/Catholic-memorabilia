@@ -93,24 +93,24 @@ export class CartRepository {
 
       if (existingItem) {
         existingItem.quantity += item.quantity;
-        existingItem.unitPrice = Number(
-          item.unitPrice || existingItem.unitPrice,
+        const effectiveUnitPrice = Number(
+          item.netPrice || item.unitPrice || existingItem.netPrice || 0,
         );
+        existingItem.unitPrice = effectiveUnitPrice;
+        existingItem.netPrice = effectiveUnitPrice;
         existingItem.totalPrice = Number(
-          (existingItem.quantity * Number(existingItem.unitPrice || 0)).toFixed(
-            2,
-          ),
+          (existingItem.quantity * effectiveUnitPrice).toFixed(2),
         );
         await this.saveCartItem(existingItem);
       } else {
+        const effectiveUnitPrice = Number(item.netPrice || item.unitPrice || 0);
         await this.saveCartItem({
           cartId: userCart.id,
           productId: item.productId,
           quantity: item.quantity,
-          unitPrice: Number(item.unitPrice || 0),
-          totalPrice: Number(
-            (item.quantity * Number(item.unitPrice || 0)).toFixed(2),
-          ),
+          unitPrice: effectiveUnitPrice,
+          netPrice: effectiveUnitPrice,
+          totalPrice: Number((item.quantity * effectiveUnitPrice).toFixed(2)),
         });
       }
     }
@@ -151,7 +151,10 @@ export class CartRepository {
   }
 
   async updateCartTotals(cartId: number) {
-    const items = await this.cartItemRepository.find({ where: { cartId } });
+    const items = await this.cartItemRepository.find({
+      where: { cartId },
+      relations: ['product'],
+    });
     const cart = await this.cartRepository.findOne({
       where: { id: cartId },
       relations: ['items', 'items.product'],
@@ -161,15 +164,56 @@ export class CartRepository {
       return null;
     }
 
+    const mappedItems = items.map((item) => {
+      const originalPrice = Number(
+        item.product?.productPrice ?? item.unitPrice ?? 0,
+      );
+      const quantity = Number(item.quantity ?? 1);
+      const priceAfterDiscount = Number(
+        item.netPrice ||
+          item.unitPrice ||
+          item.product?.netPrice ||
+          originalPrice,
+      );
+      const discountAmount = Number(
+        (Math.max(originalPrice - priceAfterDiscount, 0) * quantity).toFixed(2),
+      );
+      const totalPrice = Number((priceAfterDiscount * quantity).toFixed(2));
+
+      return {
+        ...item,
+        originalPrice: Number(originalPrice.toFixed(2)),
+        priceAfterDiscount: Number(priceAfterDiscount.toFixed(2)),
+        discountAmount,
+        totalPrice,
+      };
+    });
+
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalAmount = items.reduce(
+    const totalAmount = mappedItems.reduce(
       (sum, item) => sum + Number(item.totalPrice || 0),
+      0,
+    );
+    const shippingCharge = totalAmount > 0 ? 50 : 0;
+    const totalDiscountAmount = mappedItems.reduce(
+      (sum, item) => sum + Number(item.discountAmount || 0),
       0,
     );
 
     cart.totalItems = totalItems;
     cart.totalAmount = Number(totalAmount.toFixed(2));
 
-    return this.cartRepository.save(cart);
+    const savedCart = await this.cartRepository.save(cart);
+
+    return {
+      ...savedCart,
+      items: mappedItems,
+      totalAmount: Number(totalAmount.toFixed(2)),
+      totalDiscountAmount: Number(totalDiscountAmount.toFixed(2)),
+      shippingCharge: Number(shippingCharge.toFixed(2)),
+      netPayableAmount: Number(
+        (savedCart.totalAmount + shippingCharge).toFixed(2),
+      ),
+    };
   }
 }

@@ -75,6 +75,10 @@ export class Product {
   @Column({ type: 'varchar', nullable: false })
   productPrice: string;
 
+  @ApiProperty({ default: 0 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  netPrice: number;
+
   @ApiProperty()
   @Column({ type: 'varchar', default: 0 })
   quantity: number;

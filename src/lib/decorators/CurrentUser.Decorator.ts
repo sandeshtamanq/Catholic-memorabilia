@@ -5,16 +5,25 @@ export const CurrentUser = createParamDecorator(
   async (data: unknown, ctx: ExecutionContext) => {
     const req = ctx.switchToHttp().getRequest();
 
-    if (req.user?.id) {
-      return req.user.id;
+    const directUserId = req.user?.id ?? req.user?.user?.id;
+    if (directUserId) {
+      return directUserId;
     }
 
     const authHeader = req.headers?.authorization;
     const tokenFromHeader =
-      typeof authHeader === 'string' ? authHeader.replace('Bearer ', '') : null;
-    const token = req.cookies?.token ?? tokenFromHeader;
+      typeof authHeader === 'string'
+        ? authHeader.replace(/^Bearer\s+/i, '').trim()
+        : null;
+    const token =
+      req.cookies?.token ??
+      req.cookies?.access_token ??
+      req.cookies?.jwt ??
+      req.headers?.['x-auth-token'] ??
+      req.headers?.['x-access-token'] ??
+      tokenFromHeader;
 
-    if (!token) {
+    if (!token || typeof token !== 'string') {
       return null;
     }
 
@@ -22,10 +31,18 @@ export const CurrentUser = createParamDecorator(
       const decodedToken = decode(token) as unknown as {
         id?: number;
         sub?: string | number;
+        user?: { id?: number; userId?: number };
       } | null;
 
-      const userId = decodedToken?.id ?? Number(decodedToken?.sub ?? NaN);
-      return Number.isFinite(userId) ? userId : null;
+      const candidateUserId =
+        decodedToken?.id ??
+        decodedToken?.user?.id ??
+        decodedToken?.user?.userId ??
+        Number(decodedToken?.sub ?? NaN);
+
+      return Number.isFinite(Number(candidateUserId))
+        ? Number(candidateUserId)
+        : null;
     } catch (error) {
       return null;
     }

@@ -44,7 +44,15 @@ export class CartController {
     );
   }
 
-  private ensureCartTokenCookie(req: any, res: Response) {
+  private ensureCartTokenCookie(
+    req: any,
+    res: Response,
+    userId?: number | null,
+  ) {
+    if (userId) {
+      return null;
+    }
+
     const token = this.getCartTokenFromRequest(req);
     if (token) {
       return token;
@@ -61,14 +69,14 @@ export class CartController {
     return newToken;
   }
 
-  @Public()
   @Get()
   getCart(
     @CurrentUser() userId: number | null,
     @Req() req: any,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const cartToken = userId ? null : this.ensureCartTokenCookie(req, response);
+    console.log(userId, 'hello');
+    const cartToken = this.ensureCartTokenCookie(req, response, userId);
     return this.cartService.getCart(
       userId,
       this.getGuestEmailFromRequest(req),
@@ -84,7 +92,7 @@ export class CartController {
     @Res({ passthrough: true }) response: Response,
     @Body() addToCartDto: AddToCartDto,
   ) {
-    const cartToken = userId ? null : this.ensureCartTokenCookie(req, response);
+    const cartToken = this.ensureCartTokenCookie(req, response, userId);
     return this.cartService.addItem(
       userId,
       addToCartDto,
@@ -102,7 +110,7 @@ export class CartController {
     @Param('productId', ParseIntPipe) productId: number,
     @Body() updateCartItemDto: UpdateCartItemDto,
   ) {
-    const cartToken = userId ? null : this.ensureCartTokenCookie(req, response);
+    const cartToken = this.ensureCartTokenCookie(req, response, userId);
     return this.cartService.updateItemQuantity(
       userId,
       productId,
@@ -121,7 +129,7 @@ export class CartController {
     @Param('productId', ParseIntPipe) productId: number,
     @Query('guestEmail') guestEmail?: string,
   ) {
-    const cartToken = userId ? null : this.ensureCartTokenCookie(req, response);
+    const cartToken = this.ensureCartTokenCookie(req, response, userId);
     return this.cartService.removeItem(
       userId,
       productId,
@@ -138,7 +146,7 @@ export class CartController {
     @Res({ passthrough: true }) response: Response,
     @Query('guestEmail') guestEmail?: string,
   ) {
-    const cartToken = userId ? null : this.ensureCartTokenCookie(req, response);
+    const cartToken = this.ensureCartTokenCookie(req, response, userId);
     return this.cartService.clearCart(
       userId,
       this.getGuestEmailFromRequest(req) ?? guestEmail,

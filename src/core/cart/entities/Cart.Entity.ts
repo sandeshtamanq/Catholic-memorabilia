@@ -12,6 +12,11 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/User.Entity';
 import { CartItem } from './CartItem.Entity';
+import {
+  getAvailableShippingOptions,
+  getShippingFee,
+  ShippingMethod,
+} from '../ShippingPolicy';
 
 @Entity('carts')
 export class Cart {
@@ -60,7 +65,16 @@ export class Cart {
 
   @ApiProperty({ type: 'number', required: false })
   get shippingCharge(): number {
-    return this.totalAmount > 0 ? 50 : 0;
+    return getShippingFee(this.totalAmount, ShippingMethod.Standard);
+  }
+
+  @ApiProperty({ type: 'array', required: false })
+  get shippingOptions(): Array<{
+    method: ShippingMethod;
+    fee: number;
+    estimate: string;
+  }> {
+    return getAvailableShippingOptions(this.totalAmount);
   }
 
   @ApiProperty({ type: 'number', required: false })

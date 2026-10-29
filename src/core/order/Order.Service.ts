@@ -14,6 +14,11 @@ import { CreateOrderDto } from './dto/CreateOrderDto';
 import { OrderRepository } from './Order.Repository';
 import { OrderStatus } from './entities/OrderStatus.Enum';
 import { UserActivity } from '../activity/entities/UserActivity.Entity';
+import {
+  getShippingFee,
+  roundMoney,
+  ShippingMethod,
+} from '../cart/ShippingPolicy';
 
 @Injectable()
 export class OrderService {
@@ -119,6 +124,10 @@ export class OrderService {
         fallback: createOrderDto.deliveryAddress,
       });
 
+      const finalShippingAddress = shippingAddress || deliveryAddress || '';
+      const finalDeliveryAddress =
+        deliveryAddress || shippingAddress || finalShippingAddress;
+
       if (!effectiveUserId) {
         if (
           !createOrderDto.guestName ||
@@ -160,6 +169,8 @@ export class OrderService {
         discountAmount: number;
         totalPrice: number;
       }> = [];
+      const shippingMethod =
+        createOrderDto.shippingMethod ?? ShippingMethod.Standard;
 
       const productIds = [
         ...new Set(createOrderDto.items.map((item) => item.productId)),
@@ -200,13 +211,28 @@ export class OrderService {
         });
       }
 
+      const shippingFee = roundMoney(
+        getShippingFee(totalAmount, shippingMethod),
+      );
+
+      if (
+        createOrderDto.shippingFee !== undefined &&
+        Number(createOrderDto.shippingFee) !== shippingFee
+      ) {
+        throw new BadRequestException(
+          `Shipping fee mismatch. Expected ${shippingFee.toFixed(2)} but received ${Number(createOrderDto.shippingFee).toFixed(2)}.`,
+        );
+      }
+
       const order = await this.orderRepository.createOrder({
         userId: effectiveUserId,
         guestName: createOrderDto.guestName ?? null,
         guestEmail: createOrderDto.guestEmail ?? null,
         guestPhone: createOrderDto.guestPhone ?? null,
-        shippingAddress: shippingAddress || null,
-        deliveryAddress: deliveryAddress || null,
+        shippingAddress: finalShippingAddress || null,
+        deliveryAddress: finalDeliveryAddress || null,
+        shippingMethod,
+        shippingFee,
         orderStatus: OrderStatus.Pending,
         totalItems,
         totalAmount: Number(totalAmount.toFixed(2)),
@@ -275,5 +301,22 @@ export class OrderService {
     }
 
     return order;
+  }
+
+  async updateOrderStatus(orderId: number, status: OrderStatus) {
+    const order = await this.orderRepository.findOneById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (!status || !Object.values(OrderStatus).includes(status)) {
+      throw new BadRequestException(
+        `Status must be one of: ${Object.values(OrderStatus).join(', ')}`,
+      );
+    }
+
+    order.orderStatus = status;
+    return this.orderRepository.updateOrder(order);
   }
 }

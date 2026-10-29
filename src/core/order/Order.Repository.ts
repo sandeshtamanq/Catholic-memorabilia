@@ -57,6 +57,10 @@ export class OrderRepository {
     return this.orderRepository.save(order);
   }
 
+  async updateOrder(orderData: Partial<Order>) {
+    return this.orderRepository.save(orderData);
+  }
+
   async createOrderItems(items: Partial<OrderItem>[]) {
     const orderItems = this.orderItemRepository.create(items);
     return this.orderItemRepository.save(orderItems);

@@ -12,6 +12,11 @@ import { AddToCartDto } from './dto/AddToCartDto';
 import { UpdateCartItemDto } from './dto/UpdateCartItemDto';
 import { CartRepository } from './Cart.Repository';
 import { UserActivity } from '../activity/entities/UserActivity.Entity';
+import {
+  getAvailableShippingOptions,
+  getShippingFee,
+  ShippingMethod,
+} from './ShippingPolicy';
 
 @Injectable()
 export class CartService {
@@ -108,7 +113,7 @@ export class CartService {
       (sum: number, item: any) => sum + Number(item.discountAmount || 0),
       0,
     );
-    const shippingCharge = totalAmount > 0 ? 50 : 0;
+    const shippingCharge = getShippingFee(totalAmount, ShippingMethod.Standard);
 
     return {
       ...cart,
@@ -116,6 +121,7 @@ export class CartService {
       totalAmount: Number(totalAmount.toFixed(2)),
       totalDiscountAmount: Number(totalDiscountAmount.toFixed(2)),
       shippingCharge: Number(shippingCharge.toFixed(2)),
+      shippingOptions: getAvailableShippingOptions(totalAmount),
       netPayableAmount: Number((totalAmount + shippingCharge).toFixed(2)),
     };
   }

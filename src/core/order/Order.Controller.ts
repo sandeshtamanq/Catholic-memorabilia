@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -12,8 +13,12 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../lib/decorators/Public.Decorator';
 import { CurrentUser } from '../../lib/decorators/CurrentUser.Decorator';
 import { JwtAuthGuard } from '../auth/guards/JwtAuth.Guard';
+import { RolesGuard } from '../auth/guards/Roles.Guard';
+import { hasRoles } from '../../lib/decorators/Roles.Decorator';
+import { UserRole } from '../user/entities/UserRole.Enum';
 import { CreateOrderDto } from './dto/CreateOrderDto';
 import { OrderService } from './Order.Service';
+import { OrderStatus } from './entities/OrderStatus.Enum';
 
 @ApiTags('orders')
 @Controller('api/orders')
@@ -45,5 +50,16 @@ export class OrderController {
     @Param('id', ParseIntPipe) orderId: number,
   ) {
     return this.orderService.getOrderById(userId, orderId, req.user?.role);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @hasRoles(UserRole.Admin)
+  @Patch(':id/status')
+  updateOrderStatus(
+    @Param('id', ParseIntPipe) orderId: number,
+    @Body('status') status: OrderStatus,
+  ) {
+    return this.orderService.updateOrderStatus(orderId, status);
   }
 }

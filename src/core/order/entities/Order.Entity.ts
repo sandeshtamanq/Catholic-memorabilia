@@ -13,6 +13,7 @@ import {
 import { User } from '../../user/entities/User.Entity';
 import { OrderStatus } from './OrderStatus.Enum';
 import { OrderItem } from './OrderItem.Entity';
+import { ShippingMethod } from '../../cart/ShippingPolicy';
 
 @Entity('orders')
 export class Order {
@@ -59,6 +60,19 @@ export class Order {
   @ApiProperty()
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   totalAmount: number;
+
+  @ApiProperty({ required: false, enum: ShippingMethod })
+  @Column({
+    type: 'enum',
+    enum: ShippingMethod,
+    default: ShippingMethod.Standard,
+    nullable: true,
+  })
+  shippingMethod?: ShippingMethod;
+
+  @ApiProperty({ required: false, type: 'number' })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  shippingFee: number;
 
   @ApiProperty()
   @OneToMany(() => OrderItem, (orderItem) => orderItem.order, {

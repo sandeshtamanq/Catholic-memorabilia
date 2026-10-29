@@ -7,6 +7,7 @@ import { UserRole } from '../user/entities/UserRole.Enum';
 import { UserType } from '../user/entities/UserType.Enum';
 import { Cart } from './entities/Cart.Entity';
 import { CartItem } from './entities/CartItem.Entity';
+import { getShippingFee, ShippingMethod } from './ShippingPolicy';
 
 @Injectable()
 export class CartRepository {
@@ -194,7 +195,7 @@ export class CartRepository {
       (sum, item) => sum + Number(item.totalPrice || 0),
       0,
     );
-    const shippingCharge = totalAmount > 0 ? 50 : 0;
+    const shippingCharge = getShippingFee(totalAmount, ShippingMethod.Standard);
     const totalDiscountAmount = mappedItems.reduce(
       (sum, item) => sum + Number(item.discountAmount || 0),
       0,

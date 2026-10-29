@@ -3,8 +3,10 @@ import {
   ArrayMinSize,
   IsArray,
   IsEmail,
+  IsEnum,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   Matches,
@@ -12,6 +14,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ShippingMethod } from '../../cart/ShippingPolicy';
 
 export class CreateOrderItemDto {
   @ApiProperty({ example: 1 })
@@ -125,6 +128,26 @@ export class CreateOrderDto {
     message: 'Please enter a valid 4-digit postcode.',
   })
   deliveryPostcode?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: ShippingMethod,
+    default: ShippingMethod.Standard,
+    description:
+      'Delivery speed chosen by the customer. The backend recalculates the fee using the configured shipping rules.',
+  })
+  @IsOptional()
+  @IsEnum(ShippingMethod)
+  shippingMethod?: ShippingMethod;
+
+  @ApiProperty({
+    required: false,
+    description:
+      'Optional client value for comparison. The server always recalculates the final shipping charge from the discounted subtotal.',
+  })
+  @IsOptional()
+  @IsNumber()
+  shippingFee?: number;
 
   @ApiProperty({ type: [CreateOrderItemDto] })
   @IsArray()

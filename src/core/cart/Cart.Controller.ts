@@ -75,7 +75,6 @@ export class CartController {
     @Req() req: any,
     @Res({ passthrough: true }) response: Response,
   ) {
-    console.log(userId, 'hello');
     const cartToken = this.ensureCartTokenCookie(req, response, userId);
     return this.cartService.getCart(
       userId,

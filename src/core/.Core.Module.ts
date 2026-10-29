@@ -7,6 +7,8 @@ import { CartModule } from './cart/Cart.Module';
 import { OrderModule } from './order/Order.Module';
 import { BannerModule } from './banner/Banner.Module';
 import { ReviewModule } from './review/Review.Module';
+import { DashboardModule } from './dashboard/Dashboard.Module';
+import { BundleModule } from './bundle/Bundle.Module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { ReviewModule } from './review/Review.Module';
     OrderModule,
     BannerModule,
     ReviewModule,
+    DashboardModule,
+    BundleModule,
   ],
 })
 export class CoreModule {}

@@ -5,6 +5,10 @@ import { CategoryModule } from './category/Category.Module';
 import { ProductModule } from './product/Product.Module';
 import { CartModule } from './cart/Cart.Module';
 import { OrderModule } from './order/Order.Module';
+import { BannerModule } from './banner/Banner.Module';
+import { ReviewModule } from './review/Review.Module';
+import { DashboardModule } from './dashboard/Dashboard.Module';
+import { BundleModule } from './bundle/Bundle.Module';
 
 @Module({
   imports: [
@@ -14,6 +18,10 @@ import { OrderModule } from './order/Order.Module';
     ProductModule,
     CartModule,
     OrderModule,
+    BannerModule,
+    ReviewModule,
+    DashboardModule,
+    BundleModule,
   ],
 })
 export class CoreModule {}

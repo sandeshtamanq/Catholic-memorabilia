@@ -93,9 +93,25 @@ export class ProductController {
   @Get('related/:categoryId')
   fetchRelatedProducts(
     @Param('categoryId', ParseIntPipe) categoryId: number,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.productService.fetchRelatedProducts(categoryId, query);
+  }
+
+  @Get('suggestions')
+  fetchSuggestionsForUser(
+    @CurrentUser() userId: number | null,
     @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
   ) {
-    return this.productService.fetchRelatedProducts(categoryId, limit);
+    return this.productService.fetchSuggestionsForUser(userId, limit);
+  }
+
+  @Get('recommendations')
+  fetchRecommendations(
+    @CurrentUser() userId: number | null,
+    @Query('limit', new DefaultValuePipe(8), ParseIntPipe) limit: number,
+  ) {
+    return this.productService.fetchSuggestionsForUser(userId, limit);
   }
 
   @ApiBearerAuth()
@@ -113,6 +129,16 @@ export class ProductController {
     @Param('id', ParseIntPipe) productId: number,
   ) {
     return this.productService.toggleFavorite(userId, productId);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/favorite')
+  deleteFavorite(
+    @CurrentUser() userId: number,
+    @Param('id', ParseIntPipe) productId: number,
+  ) {
+    return this.productService.removeFavorite(userId, productId);
   }
 
   @Get(':id')

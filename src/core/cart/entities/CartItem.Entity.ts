@@ -20,7 +20,7 @@ export class CartItem {
   cartId: number;
 
   @ApiProperty()
-  @Column({ type: 'int', nullable: false })
+  @Column({ type: 'int', nullable: true })
   productId: number;
 
   @ApiProperty({ type: () => Product })
@@ -40,6 +40,33 @@ export class CartItem {
   @ApiProperty()
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   unitPrice: number;
+
+  @ApiProperty()
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  netPrice: number;
+
+  @ApiProperty({ type: 'number', required: false })
+  get originalPrice(): number {
+    const originalProductPrice = Number(
+      this.product?.productPrice ??
+        this.product?.netPrice ??
+        this.unitPrice ??
+        0,
+    );
+
+    return Number.isFinite(originalProductPrice) ? originalProductPrice : 0;
+  }
+
+  @ApiProperty({ type: 'number', required: false })
+  get discountAmount(): number {
+    const originalPrice = this.originalPrice;
+    const effectivePrice = Number(this.netPrice ?? this.unitPrice ?? 0);
+    const quantity = Number(this.quantity ?? 1);
+
+    return Number(
+      (Math.max(originalPrice - effectivePrice, 0) * quantity).toFixed(2),
+    );
+  }
 
   @ApiProperty()
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })

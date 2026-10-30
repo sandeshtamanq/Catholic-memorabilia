@@ -7,6 +7,7 @@ import { UserRole } from '../user/entities/UserRole.Enum';
 import { UserType } from '../user/entities/UserType.Enum';
 import { Cart } from './entities/Cart.Entity';
 import { CartItem } from './entities/CartItem.Entity';
+import { getShippingFee, ShippingMethod } from './ShippingPolicy';
 
 @Injectable()
 export class CartRepository {
@@ -49,14 +50,78 @@ export class CartRepository {
       .getOne();
   }
 
-  async createCart(userId: number) {
+  async findCartByGuestToken(guestToken: string) {
+    return this.cartRepository
+      .createQueryBuilder('cart')
+      .leftJoinAndSelect('cart.items', 'items')
+      .leftJoinAndSelect('items.product', 'product')
+      .where('cart.guestToken = :guestToken', { guestToken })
+      .orderBy('items.id', 'ASC')
+      .getOne();
+  }
+
+  async createCart(userId: number, guestToken?: string | null) {
     const cart = this.cartRepository.create({
       userId,
+      guestToken: guestToken ?? null,
       totalItems: 0,
       totalAmount: 0,
     });
 
     return this.cartRepository.save(cart);
+  }
+
+  async createCartForGuest(guestToken: string) {
+    return this.createCart(null as any, guestToken);
+  }
+
+  async mergeGuestCartIntoUser(guestToken: string, userId: number) {
+    const guestCart = await this.findCartByGuestToken(guestToken);
+    if (!guestCart) {
+      return null;
+    }
+
+    let userCart = await this.findCartByUserId(userId);
+    if (!userCart) {
+      userCart = await this.createCart(userId);
+    }
+
+    for (const item of guestCart.items ?? []) {
+      const existingItem = await this.findCartItemByProduct(
+        userCart.id,
+        item.productId,
+      );
+
+      if (existingItem) {
+        existingItem.quantity += item.quantity;
+        const effectiveUnitPrice = Number(
+          item.netPrice || item.unitPrice || existingItem.netPrice || 0,
+        );
+        existingItem.unitPrice = effectiveUnitPrice;
+        existingItem.netPrice = effectiveUnitPrice;
+        existingItem.totalPrice = Number(
+          (existingItem.quantity * effectiveUnitPrice).toFixed(2),
+        );
+        await this.saveCartItem(existingItem);
+      } else {
+        const effectiveUnitPrice = Number(item.netPrice || item.unitPrice || 0);
+        await this.saveCartItem({
+          cartId: userCart.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: effectiveUnitPrice,
+          netPrice: effectiveUnitPrice,
+          totalPrice: Number((item.quantity * effectiveUnitPrice).toFixed(2)),
+        });
+      }
+    }
+
+    guestCart.userId = userId;
+    guestCart.guestToken = null;
+    await this.cartRepository.save(guestCart);
+    await this.cartRepository.delete({ id: guestCart.id });
+
+    return this.updateCartTotals(userCart.id);
   }
 
   async findCartItemByProduct(cartId: number, productId: number) {
@@ -87,7 +152,10 @@ export class CartRepository {
   }
 
   async updateCartTotals(cartId: number) {
-    const items = await this.cartItemRepository.find({ where: { cartId } });
+    const items = await this.cartItemRepository.find({
+      where: { cartId },
+      relations: ['product'],
+    });
     const cart = await this.cartRepository.findOne({
       where: { id: cartId },
       relations: ['items', 'items.product'],
@@ -97,15 +165,56 @@ export class CartRepository {
       return null;
     }
 
+    const mappedItems = items.map((item) => {
+      const originalPrice = Number(
+        item.product?.productPrice ?? item.unitPrice ?? 0,
+      );
+      const quantity = Number(item.quantity ?? 1);
+      const priceAfterDiscount = Number(
+        item.netPrice ||
+          item.unitPrice ||
+          item.product?.netPrice ||
+          originalPrice,
+      );
+      const discountAmount = Number(
+        (Math.max(originalPrice - priceAfterDiscount, 0) * quantity).toFixed(2),
+      );
+      const totalPrice = Number((priceAfterDiscount * quantity).toFixed(2));
+
+      return {
+        ...item,
+        originalPrice: Number(originalPrice.toFixed(2)),
+        priceAfterDiscount: Number(priceAfterDiscount.toFixed(2)),
+        discountAmount,
+        totalPrice,
+      };
+    });
+
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    const totalAmount = items.reduce(
+    const totalAmount = mappedItems.reduce(
       (sum, item) => sum + Number(item.totalPrice || 0),
+      0,
+    );
+    const shippingCharge = getShippingFee(totalAmount, ShippingMethod.Standard);
+    const totalDiscountAmount = mappedItems.reduce(
+      (sum, item) => sum + Number(item.discountAmount || 0),
       0,
     );
 
     cart.totalItems = totalItems;
     cart.totalAmount = Number(totalAmount.toFixed(2));
 
-    return this.cartRepository.save(cart);
+    const savedCart = await this.cartRepository.save(cart);
+
+    return {
+      ...savedCart,
+      items: mappedItems,
+      totalAmount: Number(totalAmount.toFixed(2)),
+      totalDiscountAmount: Number(totalDiscountAmount.toFixed(2)),
+      shippingCharge: Number(shippingCharge.toFixed(2)),
+      netPayableAmount: Number(
+        (savedCart.totalAmount + shippingCharge).toFixed(2),
+      ),
+    };
   }
 }

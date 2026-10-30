@@ -11,6 +11,9 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Category } from '../../category/entities/Category.Entity';
+import { ProductReview } from '../../review/entities/ProductReview.Entity';
+import { BundleItem } from '../../bundle/entities/BundleItem.Entity';
+
 @Entity('products')
 export class Product {
   @ApiProperty()
@@ -33,6 +36,12 @@ export class Product {
     onDelete: 'CASCADE',
   })
   category: Category;
+
+  @OneToMany(() => ProductReview, (review) => review.product)
+  reviews: ProductReview[];
+
+  @OneToMany(() => BundleItem, (bundleItem) => bundleItem.product)
+  bundleItems: BundleItem[];
 
   @ApiProperty()
   @Column({ type: 'number', nullable: false })
@@ -69,6 +78,10 @@ export class Product {
   @ApiProperty()
   @Column({ type: 'varchar', nullable: false })
   productPrice: string;
+
+  @ApiProperty({ default: 0 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  netPrice: number;
 
   @ApiProperty()
   @Column({ type: 'varchar', default: 0 })

@@ -10,12 +10,13 @@ import { GptModule } from '../../infra/claude/Gpt.Module';
 import { CategoryDIToken } from '../category/CategoryDIToken';
 import { CategoryRepository } from '../category/Category.Repository';
 import { ProductFavorite } from './entities/ProductFavorite.Entity';
+import { UserActivity } from '../activity/entities/UserActivity.Entity';
 
 @Module({
   imports: [
     FirebaseModule,
     ProductDIToken.productEntity,
-    TypeOrmModule.forFeature([ProductFavorite]),
+    TypeOrmModule.forFeature([ProductFavorite, UserActivity]),
     CategoryDIToken.CategoryEntity,
     GptModule,
   ],

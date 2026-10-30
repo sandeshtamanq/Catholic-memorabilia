@@ -11,13 +11,19 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/User.Entity';
+import { OrderStatus } from './OrderStatus.Enum';
 import { OrderItem } from './OrderItem.Entity';
+import { ShippingMethod } from '../../cart/ShippingPolicy';
 
 @Entity('orders')
 export class Order {
   @ApiProperty()
   @PrimaryGeneratedColumn()
   id: number;
+
+  @ApiProperty({ example: '#order1' })
+  @Column({ type: 'varchar', unique: true, nullable: false })
+  orderNumber: string;
 
   @ApiProperty({ required: false })
   @Column({ type: 'int', nullable: true })
@@ -41,11 +47,15 @@ export class Order {
 
   @ApiProperty({ required: false })
   @Column({ type: 'varchar', nullable: true })
+  shippingAddress?: string;
+
+  @ApiProperty({ required: false })
+  @Column({ type: 'varchar', nullable: true })
   deliveryAddress?: string;
 
-  @ApiProperty()
-  @Column({ type: 'varchar', default: 'PENDING' })
-  orderStatus: string;
+  @ApiProperty({ enum: OrderStatus, default: OrderStatus.Pending })
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.Pending })
+  orderStatus: OrderStatus;
 
   @ApiProperty()
   @Column({ type: 'int', default: 0 })
@@ -54,6 +64,19 @@ export class Order {
   @ApiProperty()
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   totalAmount: number;
+
+  @ApiProperty({ required: false, enum: ShippingMethod })
+  @Column({
+    type: 'enum',
+    enum: ShippingMethod,
+    default: ShippingMethod.Standard,
+    nullable: true,
+  })
+  shippingMethod?: ShippingMethod;
+
+  @ApiProperty({ required: false, type: 'number' })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  shippingFee: number;
 
   @ApiProperty()
   @OneToMany(() => OrderItem, (orderItem) => orderItem.order, {

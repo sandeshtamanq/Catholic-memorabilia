@@ -62,6 +62,11 @@ export class CreateProductDto {
   @IsNotEmpty()
   productPrice: string;
 
+  @ApiProperty({ type: 'number', required: false, default: 0 })
+  @IsOptional()
+  @IsNumber()
+  netPrice?: number;
+
   @ApiProperty({ type: 'number' })
   @IsNotEmpty()
   categoryId: number;

@@ -44,14 +44,37 @@ export class OrderRepository {
     return this.productRepository.findOne({ where: { id: productId } });
   }
 
+  async getProductsByIds(productIds: number[]) {
+    if (!productIds.length) {
+      return [];
+    }
+
+    return this.productRepository.findByIds(productIds);
+  }
+
+  async countOrders() {
+    return this.orderRepository.count();
+  }
+
   async createOrder(orderData: Partial<Order>) {
     const order = this.orderRepository.create(orderData);
     return this.orderRepository.save(order);
   }
 
+  async updateOrder(orderData: Partial<Order>) {
+    return this.orderRepository.save(orderData);
+  }
+
   async createOrderItems(items: Partial<OrderItem>[]) {
     const orderItems = this.orderItemRepository.create(items);
     return this.orderItemRepository.save(orderItems);
+  }
+
+  async findAllOrders() {
+    return this.orderRepository.find({
+      relations: ['items', 'items.product'],
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async findOrdersByUser(userId: number) {

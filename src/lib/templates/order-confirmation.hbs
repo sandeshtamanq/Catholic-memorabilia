@@ -1,0 +1,45 @@
+<p>Hi {{customerName}},</p>
+<p>Thank you for your order. Your order has been placed successfully.</p>
+<p><strong>Order Number:</strong> {{orderNumber}}</p>
+<p><strong>Status:</strong> {{status}}</p>
+<p><strong>Order Date:</strong> {{createdAt}}</p>
+
+<table style='border-collapse: collapse; width: 100%; max-width: 600px;'>
+  <thead>
+    <tr>
+      <th
+        align='left'
+        style='border-bottom: 1px solid #ddd; padding: 8px;'
+      >Product</th>
+      <th
+        align='left'
+        style='border-bottom: 1px solid #ddd; padding: 8px;'
+      >Qty</th>
+      <th
+        align='left'
+        style='border-bottom: 1px solid #ddd; padding: 8px;'
+      >Price</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each items}}
+      <tr>
+        <td
+          style='padding: 8px; border-bottom: 1px solid #ddd;'
+        >{{this.productName}}</td>
+        <td
+          style='padding: 8px; border-bottom: 1px solid #ddd;'
+        >{{this.quantity}}</td>
+        <td
+          style='padding: 8px; border-bottom: 1px solid #ddd;'
+        >${{this.totalPrice}}</td>
+      </tr>
+    {{/each}}
+  </tbody>
+</table>
+
+<p style='margin-top: 16px;'><strong>Shipping Fee:</strong> ${{shippingFee}}</p>
+<p><strong>Total Paid:</strong> ${{totalAmount}}</p>
+
+<p>If you need any help, please contact our support team.</p>
+<p>Thank you for shopping with us.</p>

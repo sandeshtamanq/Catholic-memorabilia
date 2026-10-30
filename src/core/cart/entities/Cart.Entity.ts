@@ -12,6 +12,11 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/User.Entity';
 import { CartItem } from './CartItem.Entity';
+import {
+  getAvailableShippingOptions,
+  getShippingFee,
+  ShippingMethod,
+} from '../ShippingPolicy';
 
 @Entity('carts')
 export class Cart {
@@ -19,13 +24,17 @@ export class Cart {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ApiProperty()
-  @Column({ type: 'int', nullable: false })
-  userId: number;
+  @ApiProperty({ required: false })
+  @Column({ type: 'int', nullable: true })
+  userId?: number | null;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @ApiProperty({ required: false })
+  @Column({ type: 'varchar', nullable: true, unique: true })
+  guestToken?: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
-  user: User;
+  user?: User;
 
   @OneToMany(() => CartItem, (cartItem) => cartItem.cart, {
     cascade: true,
@@ -40,6 +49,38 @@ export class Cart {
   @ApiProperty()
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   totalAmount: number;
+
+  @ApiProperty({ type: 'number', required: false })
+  get totalDiscountAmount(): number {
+    if (!Array.isArray(this.items) || !this.items.length) {
+      return 0;
+    }
+
+    return Number(
+      this.items
+        .reduce((sum, item) => sum + Number(item.discountAmount ?? 0), 0)
+        .toFixed(2),
+    );
+  }
+
+  @ApiProperty({ type: 'number', required: false })
+  get shippingCharge(): number {
+    return getShippingFee(this.totalAmount, ShippingMethod.Standard);
+  }
+
+  @ApiProperty({ type: 'array', required: false })
+  get shippingOptions(): Array<{
+    method: ShippingMethod;
+    fee: number;
+    estimate: string;
+  }> {
+    return getAvailableShippingOptions(this.totalAmount);
+  }
+
+  @ApiProperty({ type: 'number', required: false })
+  get netPayableAmount(): number {
+    return Number((this.totalAmount + this.shippingCharge).toFixed(2));
+  }
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp', nullable: false })

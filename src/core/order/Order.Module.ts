@@ -5,9 +5,14 @@ import { OrderRepository } from './Order.Repository';
 import { OrderService } from './Order.Service';
 import { OrderDIToken } from './OrderDIToken';
 import { UserActivity } from '../activity/entities/UserActivity.Entity';
+import { MailModule } from '../../infra/mail/Mail.Module';
 
 @Module({
-  imports: [OrderDIToken.orderEntity, TypeOrmModule.forFeature([UserActivity])],
+  imports: [
+    OrderDIToken.orderEntity,
+    TypeOrmModule.forFeature([UserActivity]),
+    MailModule,
+  ],
   controllers: [OrderController],
   providers: [OrderService, OrderRepository],
   exports: [OrderService],

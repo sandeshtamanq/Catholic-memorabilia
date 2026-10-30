@@ -12,6 +12,11 @@ import { AddToCartDto } from './dto/AddToCartDto';
 import { UpdateCartItemDto } from './dto/UpdateCartItemDto';
 import { CartRepository } from './Cart.Repository';
 import { UserActivity } from '../activity/entities/UserActivity.Entity';
+import {
+  getAvailableShippingOptions,
+  getShippingFee,
+  ShippingMethod,
+} from './ShippingPolicy';
 
 @Injectable()
 export class CartService {
@@ -25,61 +30,181 @@ export class CartService {
     return guestEmail?.trim().toLowerCase() || null;
   }
 
-  private async ensureGuestUser(guestEmail?: string | null) {
-    const normalizedEmail =
-      this.normalizeGuestEmail(guestEmail) ??
-      `guest-${Date.now()}-${Math.random().toString(36).slice(2, 10)}@guest.local`;
-
-    let guestUser = await this.cartRepository.findUserByEmail(normalizedEmail);
-
-    if (!guestUser) {
-      guestUser = await this.cartRepository.createGuestUser({
-        firstName: 'Guest',
-        lastName: 'Customer',
-        email: normalizedEmail,
-        contactNumber: '0000000000',
-        password: await bcrypt.hash(
-          `guest-${Date.now()}-${normalizedEmail}`,
-          12,
-        ),
-        addressLine1: '',
-        suburb: '',
-        state: '',
-        postcode: '',
-        userType: UserType.Guest,
-      });
-    }
-
-    return guestUser;
+  private normalizeCartToken(cartToken?: string | null) {
+    return cartToken?.trim() || null;
   }
 
-  private async resolveUserId(
+  private getPriceBreakdown(product: any, fallbackUnitPrice = 0) {
+    const originalPrice = Number(
+      product?.productPrice ?? fallbackUnitPrice ?? 0,
+    );
+    const discountPercentage = Number(product?.discountPercentage ?? 0);
+    const discountedFromProduct = Number(product?.netPrice ?? 0);
+    const priceAfterDiscount =
+      discountedFromProduct > 0
+        ? discountedFromProduct
+        : discountPercentage > 0
+          ? originalPrice * (1 - discountPercentage / 100)
+          : originalPrice;
+
+    return {
+      originalPrice: Number(originalPrice.toFixed(2)),
+      priceAfterDiscount: Number(Number(priceAfterDiscount).toFixed(2)),
+      discountAmount: Number(
+        Math.max(originalPrice - priceAfterDiscount, 0).toFixed(2),
+      ),
+    };
+  }
+
+  private mapCartItem(item: any) {
+    const product = item?.product ?? {};
+    const unitPriceFromProduct = this.getPriceBreakdown(
+      product,
+      Number(item?.netPrice ?? item?.unitPrice ?? 0),
+    );
+    const quantity = Number(item?.quantity ?? 1);
+    const effectiveUnitPrice = Number(
+      item?.netPrice ??
+        item?.unitPrice ??
+        unitPriceFromProduct.priceAfterDiscount ??
+        0,
+    );
+    const originalPrice = Number(
+      item?.product?.productPrice ??
+        unitPriceFromProduct.originalPrice ??
+        effectiveUnitPrice,
+    );
+    const priceAfterDiscount = Number(
+      (
+        effectiveUnitPrice ||
+        unitPriceFromProduct.priceAfterDiscount ||
+        originalPrice
+      ).toFixed(2),
+    );
+    const discountAmount = Number(
+      (Math.max(originalPrice - priceAfterDiscount, 0) * quantity).toFixed(2),
+    );
+    const totalPrice = Number((priceAfterDiscount * quantity).toFixed(2));
+
+    return {
+      ...item,
+      originalPrice: Number(originalPrice.toFixed(2)),
+      priceAfterDiscount,
+      discountAmount,
+      totalPrice,
+      unitPrice: priceAfterDiscount,
+    };
+  }
+
+  private attachCartSummary(cart: any) {
+    if (!cart) {
+      return cart;
+    }
+
+    const items = Array.isArray(cart.items)
+      ? cart.items.map((item: any) => this.mapCartItem(item))
+      : [];
+
+    const totalAmount = items.reduce(
+      (sum: number, item: any) => sum + Number(item.totalPrice || 0),
+      0,
+    );
+    const totalDiscountAmount = items.reduce(
+      (sum: number, item: any) => sum + Number(item.discountAmount || 0),
+      0,
+    );
+    const shippingCharge = getShippingFee(totalAmount, ShippingMethod.Standard);
+
+    return {
+      ...cart,
+      items,
+      totalAmount: Number(totalAmount.toFixed(2)),
+      totalDiscountAmount: Number(totalDiscountAmount.toFixed(2)),
+      shippingCharge: Number(shippingCharge.toFixed(2)),
+      shippingOptions: getAvailableShippingOptions(totalAmount),
+      netPayableAmount: Number((totalAmount + shippingCharge).toFixed(2)),
+    };
+  }
+
+  private async resolveCartOwner(
     userId: number | null,
     guestEmail?: string | null,
-  ): Promise<number | null> {
+    cartToken?: string | null,
+  ) {
     if (typeof userId === 'number' && Number.isFinite(userId)) {
-      return userId;
+      return { type: 'user' as const, userId };
     }
 
-    const guestUser = await this.ensureGuestUser(guestEmail);
-    return guestUser.id;
+    const normalizedCartToken = this.normalizeCartToken(cartToken);
+    if (normalizedCartToken) {
+      return { type: 'guest' as const, guestToken: normalizedCartToken };
+    }
+
+    const normalizedGuestEmail = this.normalizeGuestEmail(guestEmail);
+    if (normalizedGuestEmail) {
+      return { type: 'guest' as const, guestToken: normalizedGuestEmail };
+    }
+
+    return null;
   }
 
-  async getCart(userId: number | null, guestEmail?: string | null) {
+  async mergeGuestCartIntoUser(userId: number, cartToken?: string | null) {
+    if (!userId) {
+      return null;
+    }
+
+    const normalizedCartToken = this.normalizeCartToken(cartToken);
+    if (!normalizedCartToken) {
+      return null;
+    }
+
+    const guestCart =
+      await this.cartRepository.findCartByGuestToken(normalizedCartToken);
+
+    if (!guestCart) {
+      return null;
+    }
+
+    const mergedCart = await this.cartRepository.mergeGuestCartIntoUser(
+      normalizedCartToken,
+      userId,
+    );
+
+    return mergedCart ?? guestCart;
+  }
+
+  async getCart(
+    userId: number | null,
+    guestEmail?: string | null,
+    cartToken?: string | null,
+  ) {
     try {
-      const resolvedUserId = await this.resolveUserId(userId, guestEmail);
-      if (!resolvedUserId) {
+      const owner = await this.resolveCartOwner(userId, guestEmail, cartToken);
+      if (!owner) {
         return null;
       }
 
-      let cart = await this.cartRepository.findCartByUserId(resolvedUserId);
+      if (owner.type === 'user') {
+        let cart = await this.cartRepository.findCartByUserId(owner.userId);
 
-      if (!cart) {
-        cart = await this.cartRepository.createCart(resolvedUserId);
+        if (!cart) {
+          cart = await this.cartRepository.createCart(owner.userId);
+        }
+
+        return this.attachCartSummary(cart);
       }
 
-      return cart;
+      let cart = await this.cartRepository.findCartByGuestToken(
+        owner.guestToken,
+      );
+
+      if (!cart) {
+        cart = await this.cartRepository.createCartForGuest(owner.guestToken);
+      }
+
+      return this.attachCartSummary(cart);
     } catch (error) {
+      console.log(error);
       throw new HttpException('Something went wrong', 500);
     }
   }
@@ -88,10 +213,11 @@ export class CartService {
     userId: number | null,
     addToCartDto: AddToCartDto,
     guestEmail?: string | null,
+    cartToken?: string | null,
   ) {
     try {
-      const resolvedUserId = await this.resolveUserId(userId, guestEmail);
-      if (!resolvedUserId) {
+      const owner = await this.resolveCartOwner(userId, guestEmail, cartToken);
+      if (!owner) {
         throw new BadRequestException(
           'Unable to resolve a cart owner for this guest session',
         );
@@ -105,10 +231,16 @@ export class CartService {
         throw new NotFoundException('Product not found');
       }
 
-      let cart = await this.cartRepository.findCartByUserId(resolvedUserId);
+      let cart =
+        owner.type === 'user'
+          ? await this.cartRepository.findCartByUserId(owner.userId)
+          : await this.cartRepository.findCartByGuestToken(owner.guestToken);
 
       if (!cart) {
-        cart = await this.cartRepository.createCart(resolvedUserId);
+        cart =
+          owner.type === 'user'
+            ? await this.cartRepository.createCart(owner.userId)
+            : await this.cartRepository.createCartForGuest(owner.guestToken);
       }
 
       const existingItem = await this.cartRepository.findCartItemByProduct(
@@ -116,11 +248,12 @@ export class CartService {
         addToCartDto.productId,
       );
 
-      const unitPrice = Number(product.productPrice);
+      const unitPrice = Number(product.netPrice || product.productPrice || 0);
 
       if (existingItem) {
         existingItem.quantity += addToCartDto.quantity;
         existingItem.unitPrice = unitPrice;
+        existingItem.netPrice = unitPrice;
         existingItem.totalPrice = Number(
           (existingItem.quantity * unitPrice).toFixed(2),
         );
@@ -132,6 +265,7 @@ export class CartService {
           productId: product.id,
           quantity: addToCartDto.quantity,
           unitPrice,
+          netPrice: unitPrice,
           totalPrice: Number((addToCartDto.quantity * unitPrice).toFixed(2)),
         });
       }
@@ -139,13 +273,14 @@ export class CartService {
       await this.userActivityRepository.save({
         moduleName: 'cart',
         action: 'ADD_TO_CART',
-        userId: resolvedUserId,
+        userId: owner.type === 'user' ? owner.userId : null,
         productId: product.id,
         description: `User added ${product.productName} to cart`,
         metadata: {
           quantity: addToCartDto.quantity,
           unitPrice,
           productName: product.productName,
+          guestToken: owner.type === 'guest' ? owner.guestToken : null,
         },
       });
 
@@ -166,19 +301,25 @@ export class CartService {
     productId: number,
     updateCartItemDto: UpdateCartItemDto,
     guestEmail?: string | null,
+    cartToken?: string | null,
   ) {
     try {
-      const resolvedUserId = await this.resolveUserId(
+      const owner = await this.resolveCartOwner(
         userId,
         guestEmail ?? updateCartItemDto.guestEmail,
+        cartToken,
       );
-      if (!resolvedUserId) {
+      if (!owner) {
         throw new BadRequestException(
           'Unable to resolve a cart owner for this guest session',
         );
       }
 
-      const cart = (await this.getCart(resolvedUserId)) as any;
+      const cart = (await this.getCart(
+        owner.type === 'user' ? owner.userId : null,
+        null,
+        owner.type === 'guest' ? owner.guestToken : null,
+      )) as any;
       const existingItem = await this.cartRepository.findCartItemByProduct(
         cart.id,
         productId,
@@ -189,9 +330,13 @@ export class CartService {
       }
 
       existingItem.quantity = updateCartItemDto.quantity;
-      existingItem.unitPrice = Number(existingItem.unitPrice || 0);
+      const effectiveUnitPrice = Number(
+        existingItem.netPrice || existingItem.unitPrice || 0,
+      );
+      existingItem.unitPrice = effectiveUnitPrice;
+      existingItem.netPrice = effectiveUnitPrice;
       existingItem.totalPrice = Number(
-        (existingItem.unitPrice * existingItem.quantity).toFixed(2),
+        (effectiveUnitPrice * existingItem.quantity).toFixed(2),
       );
 
       await this.cartRepository.saveCartItem(existingItem);
@@ -211,16 +356,21 @@ export class CartService {
     userId: number | null,
     productId: number,
     guestEmail?: string | null,
+    cartToken?: string | null,
   ) {
     try {
-      const resolvedUserId = await this.resolveUserId(userId, guestEmail);
-      if (!resolvedUserId) {
+      const owner = await this.resolveCartOwner(userId, guestEmail, cartToken);
+      if (!owner) {
         throw new BadRequestException(
           'Unable to resolve a cart owner for this guest session',
         );
       }
 
-      const cart = (await this.getCart(resolvedUserId)) as any;
+      const cart = (await this.getCart(
+        owner.type === 'user' ? owner.userId : null,
+        null,
+        owner.type === 'guest' ? owner.guestToken : null,
+      )) as any;
       const existingItem = await this.cartRepository.findCartItemByProduct(
         cart.id,
         productId,
@@ -243,16 +393,24 @@ export class CartService {
     }
   }
 
-  async clearCart(userId: number | null, guestEmail?: string | null) {
+  async clearCart(
+    userId: number | null,
+    guestEmail?: string | null,
+    cartToken?: string | null,
+  ) {
     try {
-      const resolvedUserId = await this.resolveUserId(userId, guestEmail);
-      if (!resolvedUserId) {
+      const owner = await this.resolveCartOwner(userId, guestEmail, cartToken);
+      if (!owner) {
         throw new BadRequestException(
           'Unable to resolve a cart owner for this guest session',
         );
       }
 
-      const cart = (await this.getCart(resolvedUserId)) as any;
+      const cart = (await this.getCart(
+        owner.type === 'user' ? owner.userId : null,
+        null,
+        owner.type === 'guest' ? owner.guestToken : null,
+      )) as any;
       await this.cartRepository.clearCartItems(cart.id);
       return this.cartRepository.updateCartTotals(cart.id);
     } catch (error) {

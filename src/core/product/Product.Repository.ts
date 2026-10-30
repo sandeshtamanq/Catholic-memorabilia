@@ -63,13 +63,13 @@ export class ProductRepository {
     }
 
     if (minPrice !== null) {
-      query.andWhere('CAST(p.productPrice AS DECIMAL) >= :minPrice', {
+      query.andWhere('p.netPrice >= :minPrice', {
         minPrice,
       });
     }
 
     if (maxPrice !== null) {
-      query.andWhere('CAST(p.productPrice AS DECIMAL) <= :maxPrice', {
+      query.andWhere('p.netPrice <= :maxPrice', {
         maxPrice,
       });
     }
@@ -77,8 +77,9 @@ export class ProductRepository {
     const sortColumnMap: Record<string, string> = {
       alphabet: 'p.productName',
       name: 'p.productName',
-      price: 'CAST(p.productPrice AS DECIMAL)',
+      price: 'p.netPrice',
       createdat: 'p.createdAt',
+      createdAt: 'p.createdAt',
     };
 
     const orderColumn = sortColumnMap[sortBy] ?? 'p.createdAt';
@@ -194,19 +195,116 @@ export class ProductRepository {
     return query.orderBy('p.createdAt', 'DESC').getMany();
   }
 
-  async findRelatedProducts(categoryId: number, limit = 8) {
+  async findRelatedProducts(
+    categoryId: number,
+    opts?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      minPrice?: number;
+      maxPrice?: number;
+      sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
+    },
+  ) {
+    const page = opts?.page ?? 1;
+    const limit = opts?.limit ?? 8;
+    const search = opts?.search?.trim().toLowerCase();
+    const minPrice =
+      typeof opts?.minPrice === 'number' && !Number.isNaN(opts.minPrice)
+        ? opts.minPrice
+        : null;
+    const maxPrice =
+      typeof opts?.maxPrice === 'number' && !Number.isNaN(opts.maxPrice)
+        ? opts.maxPrice
+        : null;
+    const sortBy = (opts?.sortBy ?? 'createdAt').toLowerCase();
+    const sortOrder =
+      (opts?.sortOrder ?? 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
     const query = this.repository
       .createQueryBuilder('p')
       .where('p.categoryId = :categoryId', { categoryId })
       .leftJoinAndSelect('p.category', 'category');
 
-    // if (product?.categoryId) {
-    //   query.andWhere('p.categoryId = :categoryId', {
-    //     categoryId: product.categoryId,
-    //   });
-    // }
+    if (search) {
+      query.andWhere(
+        'LOWER(p.productName) LIKE :search OR LOWER(p.productDescription) LIKE :search',
+        { search: `%${search}%` },
+      );
+    }
 
-    return query.orderBy('p.createdAt', 'DESC').take(limit).getMany();
+    if (minPrice !== null) {
+      query.andWhere('p.netPrice >= :minPrice', {
+        minPrice,
+      });
+    }
+
+    if (maxPrice !== null) {
+      query.andWhere('p.netPrice <= :maxPrice', {
+        maxPrice,
+      });
+    }
+
+    const sortColumnMap: Record<string, string> = {
+      alphabet: 'p.productName',
+      name: 'p.productName',
+      price: 'p.netPrice',
+      createdat: 'p.createdAt',
+      createdAt: 'p.createdAt',
+    };
+
+    const orderColumn = sortColumnMap[sortBy] ?? 'p.createdAt';
+
+    const [items, total] = await query
+      .orderBy(orderColumn, sortOrder)
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async findProductsByIds(productIds: number[]) {
+    if (!productIds.length) {
+      return [];
+    }
+
+    return this.repository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.category', 'category')
+      .where('p.id IN (:...productIds)', { productIds })
+      .getMany();
+  }
+
+  async findSuggestedProductsByCategories(
+    categoryIds: number[],
+    excludeProductIds: number[],
+    limit = 8,
+  ) {
+    if (!categoryIds.length) {
+      return [];
+    }
+
+    const query = this.repository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.category', 'category')
+      .where('p.categoryId IN (:...categoryIds)', { categoryIds })
+      .orderBy('p.createdAt', 'DESC');
+
+    if (excludeProductIds.length) {
+      query.andWhere('p.id NOT IN (:...excludeProductIds)', {
+        excludeProductIds,
+      });
+    }
+
+    return query.take(limit).getMany();
   }
 
   async count(categoryId) {

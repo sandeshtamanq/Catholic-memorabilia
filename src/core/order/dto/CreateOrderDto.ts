@@ -3,8 +3,10 @@ import {
   ArrayMinSize,
   IsArray,
   IsEmail,
+  IsEnum,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   Matches,
@@ -12,6 +14,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ShippingMethod } from '../../cart/ShippingPolicy';
 
 export class CreateOrderItemDto {
   @ApiProperty({ example: 1 })
@@ -48,20 +51,36 @@ export class CreateOrderDto {
   @IsString()
   guestPhone?: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({
+    required: false,
+    description: 'Shipping address used for billing/shipping details',
+  })
   @IsOptional()
   @IsString()
-  addressLine1?: string;
+  shippingAddress?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Delivery address for the actual product drop-off',
+  })
+  @IsOptional()
+  @IsString()
+  deliveryAddress?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  addressLine2?: string;
+  shippingAddressLine1?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  suburb?: string;
+  shippingAddressLine2?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  shippingSuburb?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -69,7 +88,7 @@ export class CreateOrderDto {
   @Matches(/^(ACT|NSW|NT|QLD|SA|TAS|VIC|WA)$/, {
     message: 'Please enter a valid Australian state.',
   })
-  state?: string;
+  shippingState?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
@@ -77,7 +96,58 @@ export class CreateOrderDto {
   @Matches(/^\d{4}$/, {
     message: 'Please enter a valid 4-digit postcode.',
   })
-  postcode?: string;
+  shippingPostcode?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  deliveryAddressLine1?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  deliveryAddressLine2?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  deliverySuburb?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^(ACT|NSW|NT|QLD|SA|TAS|VIC|WA)$/, {
+    message: 'Please enter a valid Australian state.',
+  })
+  deliveryState?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}$/, {
+    message: 'Please enter a valid 4-digit postcode.',
+  })
+  deliveryPostcode?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: ShippingMethod,
+    default: ShippingMethod.Standard,
+    description:
+      'Delivery speed chosen by the customer. The backend recalculates the fee using the configured shipping rules.',
+  })
+  @IsOptional()
+  @IsEnum(ShippingMethod)
+  shippingMethod?: ShippingMethod;
+
+  @ApiProperty({
+    required: false,
+    description:
+      'Optional client value for comparison. The server always recalculates the final shipping charge from the discounted subtotal.',
+  })
+  @IsOptional()
+  @IsNumber()
+  shippingFee?: number;
 
   @ApiProperty({ type: [CreateOrderItemDto] })
   @IsArray()

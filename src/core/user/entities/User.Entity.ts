@@ -15,6 +15,7 @@ import {
 import { UserRole } from './UserRole.Enum';
 import { UserType } from './UserType.Enum';
 import { Cart } from '../../cart/entities/Cart.Entity';
+import { ProductReview } from '../../review/entities/ProductReview.Entity';
 @Entity({ name: 'users' })
 @Unique(['email'])
 export class User extends BaseEntity {
@@ -84,6 +85,9 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Cart, (cart) => cart.user)
   user: Cart[];
+
+  @OneToMany(() => ProductReview, (review) => review.user)
+  reviews: ProductReview[];
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp', nullable: false })

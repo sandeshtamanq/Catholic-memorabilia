@@ -9,9 +9,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserType } from '../user/entities/UserType.Enum';
+import { UserRole } from '../user/entities/UserRole.Enum';
 import { CreateOrderDto } from './dto/CreateOrderDto';
 import { OrderRepository } from './Order.Repository';
+import { OrderStatus } from './entities/OrderStatus.Enum';
 import { UserActivity } from '../activity/entities/UserActivity.Entity';
+import {
+  getShippingFee,
+  roundMoney,
+  ShippingMethod,
+} from '../cart/ShippingPolicy';
+import { MailService } from '../../infra/mail/Mail.Service';
 
 @Injectable()
 export class OrderService {
@@ -19,6 +27,7 @@ export class OrderService {
     private readonly orderRepository: OrderRepository,
     @InjectRepository(UserActivity)
     private readonly userActivityRepository: Repository<UserActivity>,
+    private readonly mailService: MailService,
   ) {}
 
   private splitGuestName(fullName?: string) {
@@ -64,6 +73,80 @@ export class OrderService {
     return fallback || '';
   }
 
+  private getProductPriceSnapshot(product: any, quantity: number) {
+    const originalPrice = Number(product?.productPrice ?? 0);
+    const discountedPrice = Number(product?.netPrice ?? 0);
+    const priceAfterDiscount =
+      discountedPrice > 0 ? discountedPrice : originalPrice;
+    const discountAmount = Math.max(originalPrice - priceAfterDiscount, 0);
+    const totalPrice = Number((priceAfterDiscount * quantity).toFixed(2));
+
+    return {
+      originalPrice: Number(originalPrice.toFixed(2)),
+      priceAfterDiscount: Number(priceAfterDiscount.toFixed(2)),
+      discountAmount: Number(discountAmount.toFixed(2)),
+      totalPrice,
+    };
+  }
+
+  private async resolveOrderRecipientEmail(order: {
+    userId?: number | null;
+    guestEmail?: string | null;
+  }) {
+    if (order.guestEmail) {
+      return order.guestEmail;
+    }
+
+    if (order.userId) {
+      const user = await this.orderRepository.findUserById(order.userId);
+      return user?.email ?? null;
+    }
+
+    return null;
+  }
+
+  private async sendOrderConfirmationEmail(order: any) {
+    const email = await this.resolveOrderRecipientEmail(order);
+    if (!email) {
+      return;
+    }
+
+    try {
+      await this.mailService.sendOrderConfirmation(email, {
+        ...order,
+        customerName:
+          order.guestName ||
+          (order.user?.firstName
+            ? `${order.user.firstName} ${order.user.lastName || ''}`.trim()
+            : 'Customer'),
+        status: order.orderStatus ?? OrderStatus.Pending,
+      });
+    } catch (error) {
+      console.error('Failed to send order confirmation email:', error);
+    }
+  }
+
+  private async sendOrderStatusUpdateEmail(order: any) {
+    const email = await this.resolveOrderRecipientEmail(order);
+    if (!email) {
+      return;
+    }
+
+    try {
+      await this.mailService.sendOrderStatusUpdate(email, {
+        ...order,
+        customerName:
+          order.guestName ||
+          (order.user?.firstName
+            ? `${order.user.firstName} ${order.user.lastName || ''}`.trim()
+            : 'Customer'),
+        status: order.orderStatus ?? OrderStatus.Pending,
+      });
+    } catch (error) {
+      console.error('Failed to send order status update email:', error);
+    }
+  }
+
   async createOrder(
     userIdOrDto: number | null | CreateOrderDto,
     maybeDto?: CreateOrderDto,
@@ -83,13 +166,27 @@ export class OrderService {
         createOrderDto.userId ??
         null;
 
-      const deliveryAddress = this.formatDeliveryAddress({
-        addressLine1: createOrderDto.addressLine1,
-        addressLine2: createOrderDto.addressLine2,
-        suburb: createOrderDto.suburb,
-        state: createOrderDto.state,
-        postcode: createOrderDto.postcode,
+      const shippingAddress = this.formatDeliveryAddress({
+        addressLine1: createOrderDto.shippingAddressLine1,
+        addressLine2: createOrderDto.shippingAddressLine2,
+        suburb: createOrderDto.shippingSuburb,
+        state: createOrderDto.shippingState,
+        postcode: createOrderDto.shippingPostcode,
+        fallback: createOrderDto.shippingAddress,
       });
+
+      const deliveryAddress = this.formatDeliveryAddress({
+        addressLine1: createOrderDto.deliveryAddressLine1,
+        addressLine2: createOrderDto.deliveryAddressLine2,
+        suburb: createOrderDto.deliverySuburb,
+        state: createOrderDto.deliveryState,
+        postcode: createOrderDto.deliveryPostcode,
+        fallback: createOrderDto.deliveryAddress,
+      });
+
+      const finalShippingAddress = shippingAddress || deliveryAddress || '';
+      const finalDeliveryAddress =
+        deliveryAddress || shippingAddress || finalShippingAddress;
 
       if (!effectiveUserId) {
         if (
@@ -103,32 +200,13 @@ export class OrderService {
         }
 
         const guestEmail = createOrderDto.guestEmail.trim().toLowerCase();
-        let guestUser = await this.orderRepository.findUserByEmail(guestEmail);
+        const { firstName, lastName } = this.splitGuestName(
+          createOrderDto.guestName,
+        );
 
-        if (!guestUser) {
-          const { firstName, lastName } = this.splitGuestName(
-            createOrderDto.guestName,
-          );
-
-          guestUser = await this.orderRepository.createGuestUser({
-            firstName,
-            lastName,
-            email: guestEmail,
-            contactNumber: createOrderDto.guestPhone,
-            password: await bcrypt.hash(
-              `guest-${Date.now()}-${guestEmail}`,
-              12,
-            ),
-            addressLine1: createOrderDto.addressLine1 ?? '',
-            addressLine2: createOrderDto.addressLine2 ?? undefined,
-            suburb: createOrderDto.suburb ?? '',
-            state: createOrderDto.state ?? '',
-            postcode: createOrderDto.postcode ?? '',
-            userType: UserType.Guest,
-          });
-        }
-
-        effectiveUserId = guestUser.id;
+        createOrderDto.guestName = `${firstName} ${lastName}`.trim();
+        createOrderDto.guestEmail = guestEmail;
+        effectiveUserId = null;
       } else {
         const user = await this.orderRepository.findUserById(effectiveUserId);
         if (!user) {
@@ -145,14 +223,27 @@ export class OrderService {
       const orderItems: Array<{
         productId: number;
         quantity: number;
+        originalPrice: number;
         unitPrice: number;
+        priceAfterDiscount: number;
+        discountAmount: number;
         totalPrice: number;
       }> = [];
+      const shippingMethod =
+        typeof createOrderDto.shippingMethod === 'string'
+          ? (createOrderDto.shippingMethod.toLowerCase() as ShippingMethod)
+          : createOrderDto.shippingMethod ?? ShippingMethod.Standard;
+
+      const productIds = [
+        ...new Set(createOrderDto.items.map((item) => item.productId)),
+      ];
+      const products = await this.orderRepository.getProductsByIds(productIds);
+      const productMap = new Map(
+        products.map((product) => [product.id, product]),
+      );
 
       for (const item of createOrderDto.items) {
-        const product = await this.orderRepository.getProductById(
-          item.productId,
-        );
+        const product = productMap.get(item.productId);
 
         if (!product) {
           throw new NotFoundException(
@@ -166,27 +257,52 @@ export class OrderService {
           );
         }
 
-        const unitPrice = Number(product.productPrice);
-        const totalPrice = Number((unitPrice * item.quantity).toFixed(2));
+        const pricing = this.getProductPriceSnapshot(product, item.quantity);
 
         totalItems += item.quantity;
-        totalAmount += totalPrice;
+        totalAmount += pricing.totalPrice;
 
         orderItems.push({
           productId: item.productId,
           quantity: item.quantity,
-          unitPrice,
-          totalPrice,
+          originalPrice: pricing.originalPrice,
+          unitPrice: pricing.priceAfterDiscount,
+          priceAfterDiscount: pricing.priceAfterDiscount,
+          discountAmount: pricing.discountAmount,
+          totalPrice: pricing.totalPrice,
         });
       }
+
+      const shippingFee = roundMoney(
+        getShippingFee(totalAmount, shippingMethod),
+      );
+
+      if (
+        createOrderDto.shippingFee !== undefined &&
+        Number(createOrderDto.shippingFee) !== shippingFee
+      ) {
+        throw new BadRequestException(
+          `Shipping fee mismatch. Expected ${shippingFee.toFixed(2)} but received ${Number(createOrderDto.shippingFee).toFixed(2)}.`,
+        );
+      }
+
+      const totalOrders =
+        typeof this.orderRepository.countOrders === 'function'
+          ? await this.orderRepository.countOrders()
+          : 0;
+      const nextOrderNumber = `#order${totalOrders + 1}`;
 
       const order = await this.orderRepository.createOrder({
         userId: effectiveUserId,
         guestName: createOrderDto.guestName ?? null,
         guestEmail: createOrderDto.guestEmail ?? null,
         guestPhone: createOrderDto.guestPhone ?? null,
-        deliveryAddress: deliveryAddress || null,
-        orderStatus: 'PENDING',
+        shippingAddress: finalShippingAddress || null,
+        deliveryAddress: finalDeliveryAddress || null,
+        shippingMethod,
+        shippingFee,
+        orderNumber: nextOrderNumber,
+        orderStatus: OrderStatus.Pending,
         totalItems,
         totalAmount: Number(totalAmount.toFixed(2)),
       });
@@ -218,7 +334,13 @@ export class OrderService {
           ? await this.orderRepository.findOneById(order.id)
           : null;
 
-      return savedOrder ?? order;
+      if (savedOrder) {
+        await this.sendOrderConfirmationEmail(savedOrder);
+        return savedOrder;
+      }
+
+      await this.sendOrderConfirmationEmail(order);
+      return order;
     } catch (error) {
       if (
         error instanceof BadRequestException ||
@@ -231,21 +353,51 @@ export class OrderService {
     }
   }
 
-  async getOrders(userId: number) {
+  async getOrders(userId: number, userRole?: UserRole) {
+    if (userRole === UserRole.Admin) {
+      return this.orderRepository.findAllOrders();
+    }
+
     return this.orderRepository.findOrdersByUser(userId);
   }
 
-  async getOrderById(userId: number, orderId: number) {
+  async getOrderById(userId: number, orderId: number, userRole?: UserRole) {
     const order = await this.orderRepository.findOneById(orderId);
 
     if (!order) {
       throw new NotFoundException('Order not found');
     }
 
-    if (order.userId && order.userId !== userId) {
+    const isOwner = order.userId === userId;
+    const isAdmin = userRole === UserRole.Admin;
+
+    if (!isOwner && !isAdmin) {
       throw new ForbiddenException('You are not allowed to view this order');
     }
 
     return order;
+  }
+
+  async updateOrderStatus(orderId: number, status: OrderStatus) {
+    const order = await this.orderRepository.findOneById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (!status || !Object.values(OrderStatus).includes(status)) {
+      throw new BadRequestException(
+        `Status must be one of: ${Object.values(OrderStatus).join(', ')}`,
+      );
+    }
+
+    order.orderStatus = status;
+    const updatedOrder = await this.orderRepository.updateOrder(order);
+    const refreshedOrder = await this.orderRepository.findOneById(orderId);
+    if (refreshedOrder) {
+      await this.sendOrderStatusUpdateEmail(refreshedOrder);
+      return refreshedOrder;
+    }
+    return updatedOrder;
   }
 }

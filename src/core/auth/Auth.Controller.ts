@@ -14,6 +14,7 @@ import { instanceToPlain } from 'class-transformer';
 import { Response } from 'express';
 import { CurrentUser } from '../../lib/decorators/CurrentUser.Decorator';
 import { User } from '../user/entities/User.Entity';
+import { CartService } from '../cart/Cart.Service';
 import { AuthService } from './Auth.Service';
 import { ChangePasswordDto } from './dto/ChangePasswordDto';
 import { ForgotPasswordDto } from './dto/ForgotPasswordDto';
@@ -28,7 +29,10 @@ import { LocalAuthGuard } from './guards/LocalAuth.Guard';
 @Controller('api/auth')
 @UseInterceptors(ClassSerializerInterceptor)
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly cartService: CartService,
+  ) {}
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -38,15 +42,23 @@ export class AuthController {
       req.user,
     );
 
+    const cartToken = req.cookies?.cart_token ?? req.cookies?.cartToken ?? null;
+    if (cartToken && req.user?.id) {
+      await this.cartService.mergeGuestCartIntoUser(req.user.id, cartToken);
+      response.clearCookie('cart_token');
+    }
+
     const userResponse = instanceToPlain(data);
+
+    const isProduction = process.env.NODE_ENV === 'production';
 
     response
       .cookie('token', data.token, {
         httpOnly: true,
-        secure: true,
+        secure: isProduction,
         maxAge: 1000 * 60 * 60 * 24 * 14,
         expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14),
-        sameSite: 'none',
+        sameSite: isProduction ? 'none' : 'lax',
       })
       .send({
         ...userResponse.user,
@@ -87,6 +99,11 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('sign-out')
   async logout(@Res() response: Response) {
-    response.clearCookie('token').send();
+    response.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    });
+    response.send();
   }
 }

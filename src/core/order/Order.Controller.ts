@@ -16,9 +16,9 @@ import { JwtAuthGuard } from '../auth/guards/JwtAuth.Guard';
 import { RolesGuard } from '../auth/guards/Roles.Guard';
 import { hasRoles } from '../../lib/decorators/Roles.Decorator';
 import { UserRole } from '../user/entities/UserRole.Enum';
+import { ChangeOrderStatusDto } from './dto/ChangeOrderStatusDto';
 import { CreateOrderDto } from './dto/CreateOrderDto';
 import { OrderService } from './Order.Service';
-import { OrderStatus } from './entities/OrderStatus.Enum';
 
 @ApiTags('orders')
 @Controller('api/orders')
@@ -58,8 +58,11 @@ export class OrderController {
   @Patch(':id/status')
   updateOrderStatus(
     @Param('id', ParseIntPipe) orderId: number,
-    @Body('status') status: OrderStatus,
+    @Body() changeOrderStatusDto: ChangeOrderStatusDto,
   ) {
-    return this.orderService.updateOrderStatus(orderId, status);
+    return this.orderService.updateOrderStatus(
+      orderId,
+      changeOrderStatusDto.status,
+    );
   }
 }

@@ -10,8 +10,9 @@ export class MailService {
     return (order?.items ?? []).map((item: any) => ({
       ...item,
       productName:
-        item?.product?.name ??
+        item?.product?.productName ??
         item?.productName ??
+        item?.product?.name ??
         `Product ${item?.productId ?? 'Unknown'}`,
       quantity: Number(item?.quantity ?? 1),
       totalPrice: Number(

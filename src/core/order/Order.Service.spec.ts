@@ -1,7 +1,23 @@
+import { validate } from 'class-validator';
+import { ChangeOrderStatusDto } from './dto/ChangeOrderStatusDto';
 import { OrderService } from './Order.Service';
 import { OrderStatus } from './entities/OrderStatus.Enum';
 
 describe('OrderService', () => {
+  it('accepts a valid order status and rejects invalid values', async () => {
+    const validDto = new ChangeOrderStatusDto();
+    validDto.status = OrderStatus.Delivered;
+
+    const validErrors = await validate(validDto);
+    expect(validErrors).toHaveLength(0);
+
+    const invalidDto = new ChangeOrderStatusDto();
+    invalidDto.status = 'INVALID_STATUS' as any;
+
+    const invalidErrors = await validate(invalidDto);
+    expect(invalidErrors.length).toBeGreaterThan(0);
+  });
+
   it('generates an order number and sends a confirmation email after placing an order', async () => {
     const orderRepository = {
       countOrders: jest.fn().mockResolvedValue(4),
